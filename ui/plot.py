@@ -8,10 +8,13 @@ DOTSIZE = 4
 DOTALPHA = 1
 SHADOWALPHA = 0.8
 VIDEOALPHA = 0.75
-XMIN = -1.5
-XMAX = 1.5
-YMIN = -1.5
-YMAX = 1.5
+
+# Visual Range Estimation -> TODO make this configurable
+XMIN = -2.5
+XMAX = 2.5
+YMIN = -1.75
+YMAX = 1.75
+Z = 2.0
 
 
 def create_plot(frame_width, frame_height):

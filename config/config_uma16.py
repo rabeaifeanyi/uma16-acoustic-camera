@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 
 MAXNSOURCES = 9
 
-# Raumdimensionen
-YMIN = -1.5
-YMAX = 1.5
-XMIN = -1.5
-XMAX = 1.5
+# Messbereich in m
+YMIN_MEASUREMENT = -1.5
+YMAX_MEASUREMENT = 1.5
+XMIN_MEASUREMENT = -1.5
+XMAX_MEASUREMENT = 1.5
 Z = 2.0
 INCREMENT = 3/63
 
@@ -39,7 +39,7 @@ class ConfigUMA(DatasetSyntheticConfig):
         return ac.MicGeom(from_file=uma_file)
 
     def create_grid(self):
-        return ac.RectGrid(y_min=YMIN, y_max=YMAX, x_min=XMIN, x_max=XMAX, z=Z, increment=INCREMENT)
+        return ac.RectGrid(y_min=YMIN_MEASUREMENT, y_max=YMAX_MEASUREMENT, x_min=XMIN_MEASUREMENT, x_max=XMAX_MEASUREMENT, z=Z, increment=INCREMENT)
 
     def create_location_sampler(self):
         location_sampler = sp.LocationSampler(

@@ -10,7 +10,7 @@ from config import *
 
 VIDEO_INDEX = 0
 MIC_INDEX = 0
-VIDEO_SCALE_FACTOR = 1
+VIDEO_SCALE_FACTOR = 2
 
 
 vc = cv2.VideoCapture(VIDEO_INDEX)
@@ -35,7 +35,6 @@ def update_estimations():
     model_data = model_processor.get_uma16_dummy_data()
     update_plot(cds, model_data)
     
-
 
 doc = curdoc()
 doc.add_periodic_callback(update_estimations, 1000)
