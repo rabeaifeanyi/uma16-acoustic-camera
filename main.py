@@ -34,6 +34,7 @@ def update_camera_view():
 def update_estimations():
     model_data = model_processor.get_uma16_dummy_data()
     update_plot(cds, model_data)
+    
 
 
 doc = curdoc()
