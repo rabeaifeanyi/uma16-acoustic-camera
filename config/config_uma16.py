@@ -1,12 +1,22 @@
 import acoular as ac # type: ignore
-from acoupipe.datasets.synthetic import DatasetSyntheticConfig # type: ignore
+from acoupipe.datasets.synthetic import DatasetSyntheticConfig, DatasetSynthetic # type: ignore
 from pathlib import Path
 from scipy.stats import uniform # type: ignore
 import acoupipe.sampler as sp # type: ignore
 from traits.api import Dict # type: ignore
+import matplotlib.pyplot as plt
 
 
 MAXNSOURCES = 9
+
+# Raumdimensionen
+YMIN = -1.5
+YMAX = 1.5
+XMIN = -1.5
+XMAX = 1.5
+Z = 2.0
+INCREMENT = 3/63
+
 
 class ConfigUMA(DatasetSyntheticConfig):
     """Configuration for the UMA-16 microphone array.
@@ -25,16 +35,11 @@ class ConfigUMA(DatasetSyntheticConfig):
                 desc='FFT parameters')
 
     def create_mics(self):
-        uma_file = Path(ac.__file__).parent / 'xml' / 'minidsp_uma16.xml'
+        uma_file = Path(ac.__file__).parent / 'xml' / 'minidsp_uma-16.xml'
         return ac.MicGeom(from_file=uma_file)
 
     def create_grid(self):
-        return ac.RectGrid(y_min=-1.5, 
-                           y_max=1.5, 
-                           x_min=-1.5, 
-                           x_max=1.5, 
-                           z=2.0, 
-                           increment=3/63)
+        return ac.RectGrid(y_min=YMIN, y_max=YMAX, x_min=XMIN, x_max=XMAX, z=Z, increment=INCREMENT)
 
     def create_location_sampler(self):
         location_sampler = sp.LocationSampler(
@@ -55,3 +60,15 @@ class ConfigUMA(DatasetSyntheticConfig):
             location_sampler.grid = self.source_grid
         
         return location_sampler
+
+
+
+# config = ConfigUMA() 
+
+# dataset_uma = DatasetSynthetic(config=config)
+
+# plt.figure()
+# plt.scatter(
+#     dataset_uma.config.mics.mpos[0],
+#     dataset_uma.config.mics.mpos[1])
+# plt.show()
