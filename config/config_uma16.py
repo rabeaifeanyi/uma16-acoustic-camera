@@ -1,9 +1,12 @@
-import acoular as ac
-from acoupipe.datasets.synthetic import DatasetSyntheticConfig
+import acoular as ac # type: ignore
+from acoupipe.datasets.synthetic import DatasetSyntheticConfig # type: ignore
 from pathlib import Path
-from scipy.stats import uniform, norm
-import acoupipe.sampler as sp
-from traits.api import Bool, Dict, Float, Instance
+from scipy.stats import uniform # type: ignore
+import acoupipe.sampler as sp # type: ignore
+from traits.api import Dict # type: ignore
+
+
+MAXNSOURCES = 9
 
 class ConfigUMA(DatasetSyntheticConfig):
     """Configuration for the UMA-16 microphone array.
@@ -21,19 +24,22 @@ class ConfigUMA(DatasetSyntheticConfig):
                     'precision' : 'complex64'},
                 desc='FFT parameters')
 
-
     def create_mics(self):
         uma_file = Path(ac.__file__).parent / 'xml' / 'minidsp_uma16.xml'
         return ac.MicGeom(from_file=uma_file)
 
     def create_grid(self):
-        return ac.RectGrid(y_min=-1.5, y_max=1.5, x_min=-1.5, x_max=1.5,
-                                    z=2.0, increment=3/63)
+        return ac.RectGrid(y_min=-1.5, 
+                           y_max=1.5, 
+                           x_min=-1.5, 
+                           x_max=1.5, 
+                           z=2.0, 
+                           increment=3/63)
 
     def create_location_sampler(self):
         location_sampler = sp.LocationSampler(
             random_var = (uniform(-1.5,3),uniform(-1.5,3),uniform(2.0,0)),
-            nsources = self.max_nsources,
+            nsources = MAXNSOURCES,
             )
         
         # Default:
@@ -47,4 +53,5 @@ class ConfigUMA(DatasetSyntheticConfig):
         
         if self.snap_to_grid:
             location_sampler.grid = self.source_grid
+        
         return location_sampler

@@ -1,0 +1,1 @@
+from .config_uma16 import ConfigUMA
