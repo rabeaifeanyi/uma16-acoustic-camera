@@ -1,6 +1,7 @@
 import numpy as np
 from config_uma16 import ConfigUMA
 from acoupipe.datasets.synthetic import DatasetSynthetic
+import time
 
 
 class ModelProcessor:
@@ -36,6 +37,6 @@ class ModelProcessor:
             
             noisy_loc = source_locations + np.random.normal(scale=noise_level, size=source_locations.shape)
             noisy_loc = [{'x': x, 'y': y, 'strength': s} for (x, y), s in zip(noisy_loc, strengths)]
-            socketio.emit('newdata', {'locations': noisy_loc}, namespace='/data_generation')
-            socketio.sleep(1)
+            yield noisy_loc
+
 
