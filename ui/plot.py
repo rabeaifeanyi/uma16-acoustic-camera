@@ -24,9 +24,9 @@ def create_plot(frame_width, frame_height):
     fig.image_rgba(image='image_data', x=0, y=0, dw=frame_width, dh=frame_height, source=cameraCDS, alpha=VIDEOALPHA)
     
     # Set the title and axis labels
-    fig.legend.title = "Obervations"
-    fig.legend.label_text_font = "times"
-    fig.legend.label_text_font_style = "italic"
+    # fig.legend.title = "Obervations"
+    # fig.legend.label_text_font = "times"
+    # fig.legend.label_text_font_style = "italic"
     
     return fig, cds, cameraCDS
 
