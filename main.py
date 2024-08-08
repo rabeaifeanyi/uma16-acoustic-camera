@@ -7,7 +7,7 @@ from processing import *
 from config import *
 
 
-VIDEO_INDEX = 2 # 0 for webcam, 2 for external camera
+VIDEO_INDEX = usb_camera_index() # 2 for external camera if connected else 0 for webcam
 MIC_INDEX = uma16_index() # index of internal Microphone if UMA16 is not connected
 VIDEO_SCALE_FACTOR = 1.0 # TODO: better solution for scaling the video
 

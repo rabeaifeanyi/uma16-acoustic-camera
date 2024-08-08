@@ -3,15 +3,16 @@ from bokeh.models import ColumnDataSource
 
 DOTCOLOR = 'blue'
 DOTSIZE = 4
-DOTALPHA = 1
+DOTALPHA = 0.8
 SHADOWCOLOR = 'orange'
-SHADOWALPHA = 0.8
+SHADOWALPHA = 0.4
 VIDEOALPHA = 0.75
-MICCOLOR = 'red'
-MICSIZE = 5
+MICCOLOR = 'gray'
+MICLINECOLOR = 'black' 
+MICSIZE = 3
 MICALPHA = 1
 
-# Visual Range Estimation -> TODO make this configurable
+# Visual Range = Estimation -> TODO make this configurable
 XMIN = -2.5
 XMAX = 2.5
 YMIN = -1.75
@@ -73,6 +74,7 @@ def create_plot(frame_width, frame_height, mic_positions):
                 marker='circle', 
                 size=MICSIZE, 
                 color=MICCOLOR, 
+                line_color=MICLINECOLOR,
                 alpha=MICALPHA, 
                 source=mic_cds)
     
