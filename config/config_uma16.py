@@ -60,6 +60,9 @@ class ConfigUMA(DatasetSyntheticConfig):
             location_sampler.grid = self.source_grid
         
         return location_sampler
+    
+    def mic_positions(self):
+        return self.mics.mpos
 
 
 
