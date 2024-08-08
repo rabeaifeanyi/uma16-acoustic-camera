@@ -54,6 +54,7 @@ def create_plot(frame_width, frame_height, mic_positions):
                 size='s', 
                 color=SHADOWCOLOR, 
                 alpha=SHADOWALPHA, 
+                line_color=None,
                 source=cds)
     
     fig.scatter(x='x', 

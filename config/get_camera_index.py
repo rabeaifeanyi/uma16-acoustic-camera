@@ -1,6 +1,8 @@
 import cv2
 
 def usb_camera_index():
+    """Get the index of the USB camera.
+    """
     usb_camera_found = False
 
     indices_to_check = [3, 2, 1, 0]
