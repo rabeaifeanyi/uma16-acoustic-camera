@@ -50,7 +50,6 @@ def create_dashboard(video_stream, model_processor, config):
     def update_slider(attr, old, new):
         print(f"Slider value changed from {old} to {new}")
 
-
     # Link callbacks to widgets
     slider.on_change('value', update_slider)
 
