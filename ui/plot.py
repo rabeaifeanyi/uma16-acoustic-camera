@@ -1,6 +1,7 @@
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource
 
+
 DOTCOLOR = 'blue'
 DOTSIZE = 4
 DOTALPHA = 0.8
@@ -18,6 +19,7 @@ XMAX = 2.5
 YMIN = -1.75
 YMAX = 1.75
 Z = 2.0
+
 
 def create_plot(frame_width, frame_height, mic_positions):
     """ Create a Bokeh plot with the given frame dimensions.
@@ -85,7 +87,6 @@ def create_plot(frame_width, frame_height, mic_positions):
     #  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]
     
     return fig, cds, mic_cds, cameraCDS
-
 
 def update_plot(cds, model_data):
     """Update the plot with the given data.

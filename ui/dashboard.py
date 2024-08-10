@@ -3,6 +3,7 @@ from bokeh.models import Div, Slider, Button # type: ignore
 from bokeh.plotting import curdoc
 from .plot import create_plot, update_plot # type: ignore
 
+
 def create_dashboard(video_stream, model_processor, config):
     """Creates the dashboard layout for the application.
 
@@ -46,8 +47,8 @@ def create_dashboard(video_stream, model_processor, config):
         model_data = model_processor.get_uma16_dummy_data()
         update_plot(cds, model_data)
 
-    def update_slider():
-        pass
+    def update_slider(attr, old, new):
+        print(f"Slider value changed from {old} to {new}")
 
 
     # Link callbacks to widgets

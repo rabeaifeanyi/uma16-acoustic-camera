@@ -7,7 +7,6 @@ from processing import *
 from config import *
 
 
-
 # Initial configurations
 VIDEO_INDEX = usb_camera_index() 
 VIDEO_SCALE_FACTOR = 1.0
