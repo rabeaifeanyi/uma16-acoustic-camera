@@ -1,5 +1,6 @@
 import cv2
 
+
 def usb_camera_index():
     """Get the index of the USB camera.
     """
