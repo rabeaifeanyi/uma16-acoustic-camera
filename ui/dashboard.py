@@ -35,9 +35,22 @@ def create_dashboard(video_stream, model_processor, config):
         }
     </style>
     """
-    sidebar = Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH)
+    #sidebar = Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH)
     header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
 
+    checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry"], active=[0])
+
+    def toggle_mic_visibility(attr, old, new):
+        if 0 in new:
+            mic_cds.data = dict(x=mic_positions[0], y=mic_positions[1])  # Show microphones
+        else:
+            mic_cds.data = dict(x=[], y=[])  # Hide microphones
+
+    checkbox_group.on_change("active", toggle_mic_visibility)
+
+    sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
+                     checkbox_group)
+    
     frame_width = video_stream.frame_width
     frame_height = video_stream.frame_height
     mic_positions = config.mic_positions()
