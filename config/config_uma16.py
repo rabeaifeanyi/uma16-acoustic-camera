@@ -7,14 +7,12 @@ from traits.api import Dict # type: ignore
 import matplotlib.pyplot as plt
 import sounddevice as sd # type: ignore
 
-
 # Messbereich in m
 YMIN_MEASUREMENT = -1.5
 YMAX_MEASUREMENT = 1.5
 XMIN_MEASUREMENT = -1.5
 XMAX_MEASUREMENT = 1.5
 Z = 2.0
-
 INCREMENT = 3/63
 MAXNSOURCES = 9
 

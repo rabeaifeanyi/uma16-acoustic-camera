@@ -5,7 +5,6 @@ from ui import Dashboard, VideoStream
 from processing import ModelProcessor
 from config import ConfigUMA, usb_camera_index
 
-
 # Initial configurations
 VIDEO_SCALE_FACTOR = 1.0
 video_index = usb_camera_index() 

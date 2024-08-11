@@ -4,24 +4,33 @@ from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot
 from design import *
 
-
 ESTIMATION_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
 
 class Dashboard:
-    def __init__(self, video_stream, model_processor, config):
+    """ Dashboard class for the acoustic camera application
+    """
+    def __init__(self, video_stream, model_processor, mic_array_config):
+        """Initialize the dashboard with the video stream, model processor, and configuration.
+        
+        Args:
+            video_stream (VideoStream): The video stream object.
+            model_processor (ModelProcessor): The model processor object.
+            mic_array_config (Config): The microphone array configuration object.
+        """
         self.video_stream = video_stream
         self.model_processor = model_processor
-        self.acoustic_plot = AcousticCameraPlot(
+        self.acoustic_camera_plot = AcousticCameraPlot(
             frame_width=video_stream.frame_width,
             frame_height=video_stream.frame_height,
-            mic_positions=config.mic_positions()
+            mic_positions=mic_array_config.mic_positions()
         )
-        
         self.setup_layout()
         self.setup_callbacks()
 
     def setup_layout(self):
+        """Setup the layout of the dashboard.
+        """
         sidebar_style = """
         <style>
             #sidebar {
@@ -37,15 +46,15 @@ class Dashboard:
         </style>
         """
         header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
-
+        
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry"], active=[0])
-
+       
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
                          checkbox_group)
         
         content_layout = column(
             header,
-            self.acoustic_plot.fig,
+            self.acoustic_camera_plot.fig,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -65,18 +74,18 @@ class Dashboard:
 
     def toggle_mic_visibility(self, attr, old, new):
         if 0 in new:
-            self.acoustic_plot.toggle_mic_visibility(True)
+            self.acoustic_camera_plot.toggle_mic_visibility(True)
         else:
-            self.acoustic_plot.toggle_mic_visibility(False)
+            self.acoustic_camera_plot.toggle_mic_visibility(False)
 
     def update_camera_view(self):
         img = self.video_stream.get_frame()
         if img is not None:
-            self.acoustic_plot.update_camera_image(img)
+            self.acoustic_camera_plot.update_camera_image(img)
 
     def update_estimations(self):
         model_data = self.model_processor.get_uma16_dummy_data()
-        self.acoustic_plot.update_plot(model_data)
+        self.acoustic_camera_plot.update_plot(model_data)
 
     def get_layout(self):
         return self.dashboard_layout

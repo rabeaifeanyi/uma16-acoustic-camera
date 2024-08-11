@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 
-
 class VideoStream:
     """Class for reading video frames from a video capture object.
     """
@@ -23,7 +22,6 @@ class VideoStream:
         rval, frame = self.vc.read()
         
         if rval:
-            # Resizing the frame to fit in the desired dimensions
             frame = cv2.resize(frame, (self.frame_width, self.frame_height))
             
             # Converting the frame to RGBA

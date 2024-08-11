@@ -1,7 +1,6 @@
 import numpy as np
 from acoupipe.datasets.synthetic import DatasetSynthetic # type: ignore
 
-
 class ModelProcessor:
     """Model processor for the UMA-16 microphone array.
     """

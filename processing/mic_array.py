@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import time
 from config import ConfigUMA, uma16_index
 
-
 config = ConfigUMA()
 device_index = uma16_index()
 

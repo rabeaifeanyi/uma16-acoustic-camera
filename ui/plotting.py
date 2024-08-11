@@ -2,7 +2,6 @@ from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource # type: ignore
 from design import *
 
-
 # Visual Range = Estimation -> TODO make this configurable
 XMIN = -2.5
 XMAX = 2.5
