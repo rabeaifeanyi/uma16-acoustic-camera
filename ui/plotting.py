@@ -10,7 +10,6 @@ YMIN = -1.75
 YMAX = 1.75
 Z = 2.0
 
-
 class AcousticCameraPlot:
     def __init__(self, frame_width, frame_height, mic_positions):
         self.frame_width = frame_width
@@ -85,7 +84,6 @@ class AcousticCameraPlot:
             self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
         else:
             self.mic_cds.data = dict(x=[], y=[])
-    
     
 # mic_positions:
 # [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]

@@ -8,7 +8,6 @@ from design import *
 ESTIMATION_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
 
-
 class Dashboard:
     def __init__(self, video_stream, model_processor, config):
         self.video_stream = video_stream

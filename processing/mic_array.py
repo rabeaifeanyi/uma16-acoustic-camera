@@ -12,11 +12,9 @@ from config import ConfigUMA, uma16_index
 config = ConfigUMA()
 device_index = uma16_index()
 
-
 def calc_csm(data):
     csm = ac.CSM(data=data, block_size=128, window='Hanning')
     return csm.csm[0, :, :]
-
 
 sd.default.device = device_index 
 source = ac.SoundDeviceSamplesGenerator(device=device_index, numchannels=16)

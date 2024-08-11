@@ -43,4 +43,3 @@ class ModelProcessor:
 
     def get_model_data(self):
         pass
-

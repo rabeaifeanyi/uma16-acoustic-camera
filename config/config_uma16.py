@@ -50,8 +50,7 @@ class ConfigUMA(DatasetSyntheticConfig):
         location_sampler = sp.LocationSampler(
             random_var = (uniform(-1.5,3),uniform(-1.5,3),uniform(2.0,0)),
             nsources = MAXNSOURCES,
-            )
-        
+            ) 
         # Default:
         # location_sampler = sp.LocationSampler(
         #     random_var = (norm(0,0.1688*ap),norm(0,0.1688*ap),norm(z,0)), #2d also passt z so
@@ -70,7 +69,6 @@ class ConfigUMA(DatasetSyntheticConfig):
         """Get the positions of the microphones.
         """
         return self.mics.mpos
-    
 
 def uma16_index():
     """Get the index of the UMA-16 microphone array.
