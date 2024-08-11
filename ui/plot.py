@@ -1,17 +1,8 @@
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Legend # type: ignore
+from bokeh.layouts import layout, column
+from design import *
 
-
-DOTCOLOR = 'blue'
-DOTSIZE = 4
-DOTALPHA = 0.8
-SHADOWCOLOR = 'orange'
-SHADOWALPHA = 0.4
-VIDEOALPHA = 0.75
-MICCOLOR = 'gray'
-MICLINECOLOR = 'black' 
-MICSIZE = 3
-MICALPHA = 1
 
 # Visual Range = Estimation -> TODO make this configurable
 XMIN = -2.5
@@ -81,10 +72,9 @@ def create_plot(frame_width, frame_height, mic_positions):
                 alpha=MICALPHA, 
                 source=mic_cds)
     
-    # mic_positions:
-    # [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]
-    #  [-0.063 -0.063 -0.021 -0.021  0.021  0.021  0.063  0.063  0.063  0.063  0.021  0.021 -0.021 -0.021 -0.063 -0.063]
-    #  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]
+    fig.background_fill_color = PLOT_BACKGROUND_COLOR
+    fig.border_fill_color = BACKGROUND_COLOR
+    fig.outline_line_color = None 
     
     return fig, cds, mic_cds, cameraCDS
 
@@ -96,3 +86,10 @@ def update_plot(cds, model_data):
         model_data (_type_): _description_
     """
     cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+    
+    
+    
+# mic_positions:
+# [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]
+#  [-0.063 -0.063 -0.021 -0.021  0.021  0.021  0.063  0.063  0.063  0.063  0.021  0.021 -0.021 -0.021 -0.063 -0.063]
+#  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]

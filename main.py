@@ -8,11 +8,11 @@ from config import *
 
 
 # Initial configurations
-VIDEO_INDEX = usb_camera_index() 
 VIDEO_SCALE_FACTOR = 1.0
+video_index = usb_camera_index() 
 
 # Initialize video capture
-vc = cv2.VideoCapture(VIDEO_INDEX)
+vc = cv2.VideoCapture(video_index)
 frame_width = int(vc.get(cv2.CAP_PROP_FRAME_WIDTH) * VIDEO_SCALE_FACTOR)
 frame_height = int(vc.get(cv2.CAP_PROP_FRAME_HEIGHT) * VIDEO_SCALE_FACTOR)
 

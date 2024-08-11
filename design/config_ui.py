@@ -1,0 +1,28 @@
+# font configurations
+FONT = "Arial"
+FONTCOLOR = "#2c3e50"
+
+# ui colors
+BACKGROUND_COLOR = "#f7f7f7"
+SIDEBAR_COLOR = "#ecf0f1"
+HIGHLIGHT_COLOR = "#3498db"
+SLIDER_BACKGROUND = "#ecf0f1"
+SLIDER_BAR_COLOR = "#95a5a6"
+
+# plot configurations
+DOTCOLOR = 'blue'
+DOTSIZE = 4
+DOTALPHA = 0.8
+SHADOWCOLOR = 'orange'
+SHADOWALPHA = 0.4
+VIDEOALPHA = 0.75
+MICCOLOR = 'gray'
+MICLINECOLOR = 'black' 
+MICSIZE = 3
+MICALPHA = 1
+PLOT_BACKGROUND_COLOR = BACKGROUND_COLOR
+
+# ui and plot positions and dimensions
+FIG_WIDTH = 800
+FIG_HEIGHT = 600
+SIDEBAR_WIDTH = 300
