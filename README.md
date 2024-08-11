@@ -1,7 +1,3 @@
-#  A Low-Cost Acoustic Camera 
+# A Low-Cost Acoustic Camera
 
-with the use of UMA16 microphone array
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
+UMA 16 microphone array and USB-Camera
