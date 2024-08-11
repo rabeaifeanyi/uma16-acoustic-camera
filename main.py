@@ -1,10 +1,9 @@
 import cv2
 import sounddevice as sd # type: ignore
 from bokeh.plotting import curdoc # type: ignore
-from bokeh.layouts import column
-from ui import *
-from processing import *
-from config import *
+from ui import Dashboard, VideoStream
+from processing import ModelProcessor
+from config import ConfigUMA, usb_camera_index
 
 
 # Initial configurations
@@ -21,9 +20,9 @@ config = ConfigUMA()
 video_stream = VideoStream(frame_width, frame_height, vc)
 model_processor = ModelProcessor(frame_width, frame_height, config)
 
-# Create the UI layout using the imported function from ui.py
-dashboard_layout = create_dashboard(video_stream, model_processor, config)
+# Create the UI layout using the Dashboard class
+dashboard = Dashboard(video_stream, model_processor, config)
 
 # Add the layout to the document
 doc = curdoc()
-doc.add_root(dashboard_layout)
+doc.add_root(dashboard.get_layout())

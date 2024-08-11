@@ -1,7 +1,7 @@
-from bokeh.layouts import column, layout, row, Spacer
+from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup # type: ignore
 from bokeh.plotting import curdoc
-from .plot import create_plot, update_plot # type: ignore
+from .plotting import AcousticCameraPlot
 from design import *
 
 
@@ -9,81 +9,75 @@ ESTIMATION_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
 
 
-def create_dashboard(video_stream, model_processor, config):
-    """Creates the dashboard layout for the application.
+class Dashboard:
+    def __init__(self, video_stream, model_processor, config):
+        self.video_stream = video_stream
+        self.model_processor = model_processor
+        self.acoustic_plot = AcousticCameraPlot(
+            frame_width=video_stream.frame_width,
+            frame_height=video_stream.frame_height,
+            mic_positions=config.mic_positions()
+        )
+        
+        self.setup_layout()
+        self.setup_callbacks()
 
-    Args:
-        video_stream (VideoStream): Instance of the video stream.
-        model_processor (ModelProcessor): Instance of the model processor.
-        config (ConfigUMA): Configuration for the UMA-16 microphone array.
+    def setup_layout(self):
+        sidebar_style = """
+        <style>
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 300px;
+                background-color: #ecf0f1;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+        </style>
+        """
+        header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
 
-    Returns:
-        layout: Bokeh layout containing the entire dashboard.
-    """
+        checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry"], active=[0])
 
-    sidebar_style = """
-    <style>
-        #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 300px;
-            background-color: #ecf0f1;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-    </style>
-    """
-    #sidebar = Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH)
-    header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
+        sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
+                         checkbox_group)
+        
+        content_layout = column(
+            header,
+            self.acoustic_plot.fig,
+            sizing_mode="stretch_both",
+            margin=(0, 320, 0, 0) 
+        )
 
-    checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry"], active=[0])
+        self.dashboard_layout = layout(
+            row(sidebar, content_layout),
+            sizing_mode="stretch_both",
+            background=BACKGROUND_COLOR,
+            margin=(0, 0, 0, 0)
+        )
 
-    def toggle_mic_visibility(attr, old, new):
+        checkbox_group.on_change("active", self.toggle_mic_visibility)
+
+    def setup_callbacks(self):
+        curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
+        curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
+
+    def toggle_mic_visibility(self, attr, old, new):
         if 0 in new:
-            mic_cds.data = dict(x=mic_positions[0], y=mic_positions[1])  # Show microphones
+            self.acoustic_plot.toggle_mic_visibility(True)
         else:
-            mic_cds.data = dict(x=[], y=[])  # Hide microphones
+            self.acoustic_plot.toggle_mic_visibility(False)
 
-    checkbox_group.on_change("active", toggle_mic_visibility)
-
-    sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
-                     checkbox_group)
-    
-    frame_width = video_stream.frame_width
-    frame_height = video_stream.frame_height
-    mic_positions = config.mic_positions()
-
-    fig, cds, mic_cds, cameraCDS = create_plot(frame_width, frame_height, mic_positions)
-    fig.width = FIG_WIDTH
-    fig.height = FIG_HEIGHT
-
-    content_layout = column(
-        header,
-        fig,
-        sizing_mode="stretch_both",
-        margin=(0, 320, 0, 0) 
-    )
-
-    dashboard_layout = layout(
-        row(sidebar, content_layout),
-        sizing_mode="stretch_both",
-        background=BACKGROUND_COLOR,
-        margin=(0, 0, 0, 0)
-    )
-
-    def update_camera_view():
-        img = video_stream.get_frame()
+    def update_camera_view(self):
+        img = self.video_stream.get_frame()
         if img is not None:
-            cameraCDS.data['image_data'] = [img]
+            self.acoustic_plot.update_camera_image(img)
 
-    def update_estimations():
-        model_data = model_processor.get_uma16_dummy_data()
-        update_plot(cds, model_data)
+    def update_estimations(self):
+        model_data = self.model_processor.get_uma16_dummy_data()
+        self.acoustic_plot.update_plot(model_data)
 
-    doc = curdoc()
-    doc.add_periodic_callback(update_estimations, ESTIMATION_UPDATE_INTERVAL)
-    doc.add_periodic_callback(update_camera_view, CAMERA_UPDATE_INTERVAL)
-
-    return dashboard_layout
+    def get_layout(self):
+        return self.dashboard_layout
