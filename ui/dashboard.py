@@ -53,6 +53,7 @@ class Dashboard:
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
                          checkbox_group)
         
+        # TODO funktioniert nur im Vollbild 
         content_layout = column(
             header,
             self.acoustic_camera_plot.fig,
