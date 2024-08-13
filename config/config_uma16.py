@@ -6,6 +6,7 @@ import acoupipe.sampler as sp # type: ignore
 from traits.api import Dict # type: ignore
 import matplotlib.pyplot as plt
 import sounddevice as sd # type: ignore
+import numpy as np
 
 # Messbereich in m
 YMIN_MEASUREMENT = -1.5
@@ -63,10 +64,19 @@ class ConfigUMA(DatasetSyntheticConfig):
         
         return location_sampler
     
-    def mic_positions(self):
+    def mic_positions(self, shifted=True):
         """Get the positions of the microphones.
         """
+        # TODO Welches Mikro nehmen wir als Referenz? Hier Mikro obere linke Ecke
+        if shifted:
+            return self.mics.mpos + np.array([[0.063, -0.063, 0]]).T
+        
         return self.mics.mpos
+    
+        # mic_positions:
+        # [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]
+        #  [-0.063 -0.063 -0.021 -0.021  0.021  0.021  0.063  0.063  0.063  0.063  0.021  0.021 -0.021 -0.021 -0.063 -0.063]
+        #  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]
 
 def uma16_index():
     """Get the index of the UMA-16 microphone array.

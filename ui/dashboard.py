@@ -47,8 +47,9 @@ class Dashboard:
         """
         header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
         
-        checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry"], active=[0])
-       
+        checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
+                                       active=[0, 1])
+
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
                          checkbox_group)
         
@@ -66,17 +67,21 @@ class Dashboard:
             margin=(0, 0, 0, 0)
         )
 
-        checkbox_group.on_change("active", self.toggle_mic_visibility)
+        checkbox_group.on_change("active", self.toggle_visibility)
 
     def setup_callbacks(self):
         curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
         curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
 
-    def toggle_mic_visibility(self, attr, old, new):
-        if 0 in new:
-            self.acoustic_camera_plot.toggle_mic_visibility(True)
-        else:
-            self.acoustic_camera_plot.toggle_mic_visibility(False)
+    def toggle_mic_visibility(self, visible):
+        self.acoustic_camera_plot.toggle_mic_visibility(visible)
+            
+    def toggle_origin_visibility(self, visible):
+        self.acoustic_camera_plot.toggle_origin_visibility(visible)
+            
+    def toggle_visibility(self, attr, old, new):
+        self.toggle_mic_visibility(0 in new)
+        self.toggle_origin_visibility(1 in new)
 
     def update_camera_view(self):
         img = self.video_stream.get_frame()

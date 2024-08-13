@@ -1,5 +1,9 @@
 import cv2
 
+def calibration():
+    # https://www.geeksforgeeks.org/camera-calibration-with-python-opencv/
+    pass
+
 def usb_camera_index():
     """Get the index of the USB camera. 
     This method is not universal and may need to be adjusted for different systems.
