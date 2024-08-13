@@ -1,6 +1,6 @@
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, Arrow, VeeHead # type: ignore
-from design import *
+from .config_ui import *
 
 # Visual Range = Estimation -> TODO make this configurable
 XMIN = -2.5

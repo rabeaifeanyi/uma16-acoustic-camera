@@ -2,7 +2,7 @@ from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup # type: ignore
 from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot
-from design import *
+from .config_ui import *
 
 ESTIMATION_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
