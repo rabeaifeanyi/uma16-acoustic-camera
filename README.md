@@ -13,4 +13,4 @@
 
 ## Run application
 
-`bokeh serve --show uma16_acoustic_camera/main.py`
+`bokeh serve --show app.py`
