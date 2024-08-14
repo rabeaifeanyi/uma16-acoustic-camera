@@ -19,14 +19,15 @@ class VideoStream:
         self.camera_matrix, self.dist_coeffs, _, _ = load_calibration_data('config/camera_calibration.csv')
         self.new_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist_coeffs, (self.frame_width, self.frame_height), 1, (self.frame_width, self.frame_height))
 
-    def get_frame(self):
+    def get_frame(self, undistort=False):
         """Read a frame from the video capture object and return it as an RGBA image.
         """
         rval, frame = self.vc.read()
         
         if rval:
             frame = cv2.resize(frame, (self.frame_width, self.frame_height))
-            frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
+            if undistort:
+                frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
             
             # Converting the frame to RGBA
             img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
