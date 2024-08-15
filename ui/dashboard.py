@@ -1,11 +1,12 @@
 from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot
+from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-ESTIMATION_UPDATE_INTERVAL = 1000
-CAMERA_UPDATE_INTERVAL = 100
+ESTIMATION_UPDATE_INTERVAL = 10000 #ms
+CAMERA_UPDATE_INTERVAL = 200
+STREAM_UPDATE_INTERVAL = 2000
 
 class Dashboard:
     """ Dashboard class for the acoustic camera application
@@ -25,6 +26,9 @@ class Dashboard:
             frame_height=video_stream.frame_height,
             mic_positions=mic_array_config.mic_positions()
         )
+        
+        self.stream_plot = StreamPlot()
+                                      
         self.setup_layout()
         self.setup_callbacks()
 
@@ -57,6 +61,7 @@ class Dashboard:
         content_layout = column(
             header,
             self.acoustic_camera_plot.fig,
+            self.stream_plot.fig,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -73,6 +78,7 @@ class Dashboard:
     def setup_callbacks(self):
         curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
         curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
+        curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
 
     def toggle_mic_visibility(self, visible):
         self.acoustic_camera_plot.toggle_mic_visibility(visible)
@@ -92,6 +98,10 @@ class Dashboard:
     def update_estimations(self):
         model_data = self.model_processor.get_uma16_dummy_data()
         self.acoustic_camera_plot.update_plot(model_data)
+        
+    def update_stream(self):
+        stream_data = self.model_processor.get_uma_data()
+        self.stream_plot.update_plot(stream_data)
 
     def get_layout(self):
         return self.dashboard_layout

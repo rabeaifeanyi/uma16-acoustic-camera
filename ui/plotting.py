@@ -109,4 +109,26 @@ class AcousticCameraPlot:
             self.arrow_x.visible = visible
             self.arrow_y.visible = visible
 
+class StreamPlot():
+    def __init__(self):
+        self.cds = ColumnDataSource(data=dict(x=[], y=[]))
+        self.fig = self._create_plot()
+        
+    def _create_plot(self):
+        fig = figure(width=800, 
+                     height=300, 
+                     output_backend='webgl')
+        
+        fig.line(x='x', 
+                 y='y', 
+                 line_color=MICLINECOLOR,
+                 source=self.cds)
+        
+        fig.background_fill_color = PLOT_BACKGROUND_COLOR
+        fig.border_fill_color = BACKGROUND_COLOR
 
+        return fig
+    
+    def update_plot(self, stream_data):
+        self.cds.data = dict(x=stream_data['x'], y=stream_data['y'])
+    
