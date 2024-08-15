@@ -1,12 +1,12 @@
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup # type: ignore
 from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-ESTIMATION_UPDATE_INTERVAL = 10000 #ms
-CAMERA_UPDATE_INTERVAL = 200
-STREAM_UPDATE_INTERVAL = 2000
+ESTIMATION_UPDATE_INTERVAL = 1000 #ms
+CAMERA_UPDATE_INTERVAL = 100
+STREAM_UPDATE_INTERVAL = 1000
 
 class Dashboard:
     """ Dashboard class for the acoustic camera application
@@ -27,8 +27,7 @@ class Dashboard:
             mic_positions=mic_array_config.mic_positions()
         )
         
-        self.stream_plot = StreamPlot()
-                                      
+        self.stream_plot = StreamPlot()          
         self.setup_layout()
         self.setup_callbacks()
 
@@ -53,9 +52,14 @@ class Dashboard:
         
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
                                        active=[0, 1])
-
+        
+        plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream Plot"], active=0)
+        
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
-                         checkbox_group)
+                         checkbox_group,
+                         plot_selector)
+        
+        self.stream_plot.fig.visible = False
         
         # TODO funktioniert nur im Vollbild 
         content_layout = column(
@@ -74,11 +78,20 @@ class Dashboard:
         )
 
         checkbox_group.on_change("active", self.toggle_visibility)
+        plot_selector.on_change('active', self.toggle_plot_visibility)
 
     def setup_callbacks(self):
         curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
         curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
         curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
+
+    def toggle_plot_visibility(self, attr, old, new):
+        if new == 0:
+            self.acoustic_camera_plot.fig.visible = True
+            self.stream_plot.fig.visible = False
+        elif new == 1:
+            self.acoustic_camera_plot.fig.visible = False
+            self.stream_plot.fig.visible = True
 
     def toggle_mic_visibility(self, visible):
         self.acoustic_camera_plot.toggle_mic_visibility(visible)
@@ -89,7 +102,7 @@ class Dashboard:
     def toggle_visibility(self, attr, old, new):
         self.toggle_mic_visibility(0 in new)
         self.toggle_origin_visibility(1 in new)
-
+        
     def update_camera_view(self):
         img = self.video_stream.get_frame()
         if img is not None:

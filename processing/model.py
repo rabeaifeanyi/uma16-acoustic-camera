@@ -35,6 +35,7 @@ class ModelProcessor:
                                                         progress_bar=False)
     
     def get_uma_data(self):
+        # TODO ist return_result die richtige Methode?
         signal = ac.tools.return_result(self.dev, num=256)
         return {
             'x': self.t.tolist(), 

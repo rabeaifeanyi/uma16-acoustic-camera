@@ -115,13 +115,14 @@ class StreamPlot():
         self.fig = self._create_plot()
         
     def _create_plot(self):
-        fig = figure(width=800, 
-                     height=300, 
+        fig = figure(width=1200, 
+                     height=400, 
                      output_backend='webgl')
         
         fig.line(x='x', 
                  y='y', 
                  line_color=MICLINECOLOR,
+                 alpha=0.5,
                  source=self.cds)
         
         fig.background_fill_color = PLOT_BACKGROUND_COLOR
