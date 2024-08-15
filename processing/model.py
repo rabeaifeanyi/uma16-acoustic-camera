@@ -39,7 +39,7 @@ class ModelProcessor:
         signal = ac.tools.return_result(self.dev, num=256)
         return {
             'x': self.t.tolist(), 
-            'y': signal[:,0].tolist()
+            'y': signal.tolist()
         }
 
     def get_uma16_dummy_data(self):
