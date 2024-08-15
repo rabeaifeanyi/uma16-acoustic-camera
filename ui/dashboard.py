@@ -1,23 +1,19 @@
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot
+from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-ESTIMATION_UPDATE_INTERVAL = 1000
+ESTIMATION_UPDATE_INTERVAL = 1000 #ms
 CAMERA_UPDATE_INTERVAL = 100
+STREAM_UPDATE_INTERVAL = 500
 
 class Dashboard:
-    """ Dashboard class for the acoustic camera application
-    """
+    """ Dashboard class for the acoustic camera application """
+    
     def __init__(self, video_stream, model_processor, mic_array_config):
-        """Initialize the dashboard with the video stream, model processor, and configuration.
+        """Initialize the dashboard with the video stream, model processor, and configuration."""
         
-        Args:
-            video_stream (VideoStream): The video stream object.
-            model_processor (ModelProcessor): The model processor object.
-            mic_array_config (Config): The microphone array configuration object.
-        """
         self.video_stream = video_stream
         self.model_processor = model_processor
         self.acoustic_camera_plot = AcousticCameraPlot(
@@ -25,12 +21,20 @@ class Dashboard:
             frame_height=video_stream.frame_height,
             mic_positions=mic_array_config.mic_positions()
         )
+        
+        self.stream_plot = StreamPlot()
+
+        # Initialisierte Callback-IDs
+        self.camera_view_callback = None
+        self.estimation_callback = None
+        self.stream_callback = None
+
         self.setup_layout()
         self.setup_callbacks()
 
     def setup_layout(self):
-        """Setup the layout of the dashboard.
-        """
+        """Setup the layout of the dashboard."""
+        
         sidebar_style = """
         <style>
             #sidebar {
@@ -45,18 +49,24 @@ class Dashboard:
             }
         </style>
         """
+        
         header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
         
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
                                        active=[0, 1])
-
-        sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
-                         checkbox_group)
         
-        # TODO funktioniert nur im Vollbild 
+        plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream Plot"], active=0)
+        
+        sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
+                         checkbox_group,
+                         plot_selector)
+        
+        self.stream_plot.fig.visible = False
+        
         content_layout = column(
             header,
             self.acoustic_camera_plot.fig,
+            self.stream_plot.fig,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -69,10 +79,54 @@ class Dashboard:
         )
 
         checkbox_group.on_change("active", self.toggle_visibility)
+        plot_selector.on_change('active', self.toggle_plot_visibility)
 
     def setup_callbacks(self):
-        curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
-        curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
+        """Initial setup for periodic callbacks"""
+        self.start_acoustic_camera_plot()
+
+    def start_acoustic_camera_plot(self):
+        """Start periodic callbacks for the acoustic camera plot"""
+        self.stop_stream_plot()
+
+        if self.camera_view_callback is None:
+            self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
+        
+        if self.estimation_callback is None:
+            self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
+
+    def start_stream_plot(self):
+        """Start periodic callbacks for the stream plot"""
+        self.stop_acoustic_camera_plot()
+
+        if self.stream_callback is None:
+            self.stream_callback = curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
+
+    def stop_acoustic_camera_plot(self):
+        """Stop periodic callbacks for the acoustic camera plot"""
+        if self.camera_view_callback is not None:
+            curdoc().remove_periodic_callback(self.camera_view_callback)
+            self.camera_view_callback = None
+
+        if self.estimation_callback is not None:
+            curdoc().remove_periodic_callback(self.estimation_callback)
+            self.estimation_callback = None
+
+    def stop_stream_plot(self):
+        """Stop periodic callbacks for the stream plot"""
+        if self.stream_callback is not None:
+            curdoc().remove_periodic_callback(self.stream_callback)
+            self.stream_callback = None
+
+    def toggle_plot_visibility(self, attr, old, new):
+        if new == 0:
+            self.acoustic_camera_plot.fig.visible = True
+            self.stream_plot.fig.visible = False
+            self.start_acoustic_camera_plot()
+        elif new == 1:
+            self.acoustic_camera_plot.fig.visible = False
+            self.stream_plot.fig.visible = True
+            self.start_stream_plot()
 
     def toggle_mic_visibility(self, visible):
         self.acoustic_camera_plot.toggle_mic_visibility(visible)
@@ -83,7 +137,7 @@ class Dashboard:
     def toggle_visibility(self, attr, old, new):
         self.toggle_mic_visibility(0 in new)
         self.toggle_origin_visibility(1 in new)
-
+        
     def update_camera_view(self):
         img = self.video_stream.get_frame()
         if img is not None:
@@ -92,6 +146,10 @@ class Dashboard:
     def update_estimations(self):
         model_data = self.model_processor.get_uma16_dummy_data()
         self.acoustic_camera_plot.update_plot(model_data)
+        
+    def update_stream(self):
+        stream_data = self.model_processor.get_uma_data()
+        self.stream_plot.update_plot(stream_data)
 
     def get_layout(self):
         return self.dashboard_layout

@@ -82,13 +82,16 @@ def uma16_index():
     """Get the index of the UMA-16 microphone array.
     """
     devices = sd.query_devices()
+    
+    device_index = None
 
     for index, device in enumerate(devices):
         if "nanoSHARC micArray16 UAC2.0" in device['name']:
             device_index = index
             print(f"\nUMA-16 device: {device['name']} at index {device_index}\n")
             break
-    else:
+    
+    if device_index is None:
         print("Could not find the UMA-16 device. Defaulting to the first device")
         device_index = 0 # Default to the first device
         
