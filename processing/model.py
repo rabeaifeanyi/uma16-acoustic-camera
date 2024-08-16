@@ -23,6 +23,8 @@ class ModelProcessor:
         self.dev.numsamples = int(self.recording_time * self.dev.sample_freq)
         self.t = np.arange(self.dev.numsamples) / self.dev.sample_freq
         
+        
+        
         # Dummy data
         self.config = config
         self.noise_level = 0.05
@@ -42,7 +44,7 @@ class ModelProcessor:
             'y': signal.tolist()
         }
 
-    def get_uma16_dummy_data(self):
+    def dummy_uma16_ssl(self):
         """Get dummy data for the UMA-16 microphone array.
         """
         try:
@@ -66,6 +68,13 @@ class ModelProcessor:
             'y': noisy_loc[:, 1].tolist(),
             's': strengths.tolist()
         }
-
+        
+    def uma16_ssl(self):
 
         
+        pass
+        # return {
+        #     'x': source_locations[:, 0].tolist(),
+        #     'y': source_locations[:, 1].tolist(),
+        #     's': strengths.tolist()
+        # }

@@ -7,8 +7,16 @@ from .config_ui import *
 class Dashboard:
     """ Dashboard class for the acoustic camera application """
     
-    def __init__(self, video_stream, model_processor, mic_array_config, estimation_update_interval, camera_update_interval, stream_update_interval):
+    def __init__(self, 
+                 video_stream, 
+                 model_processor, 
+                 mic_array_config, 
+                 estimation_update_interval, 
+                 camera_update_interval, 
+                 stream_update_interval,
+                 dummy_data=True):
         """Initialize the dashboard with the video stream, model processor, and configuration."""
+        self.dummy_data = dummy_data
         
         self.video_stream = video_stream
         self.model_processor = model_processor
@@ -114,7 +122,6 @@ class Dashboard:
 
         if self.stream_callback is None:
             self.stream_callback = curdoc().add_periodic_callback(self.update_stream, self.stream_update_interval)
-
     
     def stop_stream_plot(self):
         """Stop periodic callbacks for the stream plot"""
@@ -148,7 +155,10 @@ class Dashboard:
             self.acoustic_camera_plot.update_camera_image(img)
 
     def update_estimations(self):
-        model_data = self.model_processor.get_uma16_dummy_data()
+        if self.dummy_data:
+            model_data = self.model_processor.dummy_uma16_ssl()
+        else:
+            model_data = self.model_processor.uma16_ssl()
         self.acoustic_camera_plot.update_plot(model_data)
         
     def update_stream(self):
