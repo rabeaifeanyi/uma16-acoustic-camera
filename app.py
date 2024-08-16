@@ -9,22 +9,30 @@ from config import ConfigUMA, usb_camera_index, uma16_index
 ac.config.global_caching = 'none'
 
 # Initial configurations
-VIDEO_SCALE_FACTOR = 1.0
+VIDEO_SCALE_FACTOR = 1
+UNDISTORT = True
+
+ESTIMATION_UPDATE_INTERVAL = 1000 #ms
+CAMERA_UPDATE_INTERVAL = 100
+STREAM_UPDATE_INTERVAL = 500
+
 video_index = usb_camera_index() 
 mic_index = uma16_index()
 
-# Initialize video capture
-vc = cv2.VideoCapture(video_index)
-frame_width = int(vc.get(cv2.CAP_PROP_FRAME_WIDTH) * VIDEO_SCALE_FACTOR)
-frame_height = int(vc.get(cv2.CAP_PROP_FRAME_HEIGHT) * VIDEO_SCALE_FACTOR)
-
 # Initialize video stream and model processor
 config = ConfigUMA()
-video_stream = VideoStream(frame_width, frame_height, vc, video_index)
+video_stream = VideoStream(video_index, VIDEO_SCALE_FACTOR, UNDISTORT)
+frame_width = video_stream.frame_width
+frame_height = video_stream.frame_height
 model_processor = ModelProcessor(frame_width, frame_height, config, mic_index)
 
 # Create the UI layout using the Dashboard class
-dashboard = Dashboard(video_stream, model_processor, config)
+dashboard = Dashboard(video_stream, 
+                      model_processor, 
+                      config, 
+                      ESTIMATION_UPDATE_INTERVAL, 
+                      CAMERA_UPDATE_INTERVAL, 
+                      STREAM_UPDATE_INTERVAL)
 
 # Add the layout to the document
 doc = curdoc()
