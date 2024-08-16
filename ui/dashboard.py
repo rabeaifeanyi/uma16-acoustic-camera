@@ -88,19 +88,13 @@ class Dashboard:
     def start_acoustic_camera_plot(self):
         """Start periodic callbacks for the acoustic camera plot"""
         self.stop_stream_plot()
+        self.video_stream.start()  # Start the camera stream
 
         if self.camera_view_callback is None:
             self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
         
         if self.estimation_callback is None:
             self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
-
-    def start_stream_plot(self):
-        """Start periodic callbacks for the stream plot"""
-        self.stop_acoustic_camera_plot()
-
-        if self.stream_callback is None:
-            self.stream_callback = curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
 
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
@@ -112,6 +106,16 @@ class Dashboard:
             curdoc().remove_periodic_callback(self.estimation_callback)
             self.estimation_callback = None
 
+        self.video_stream.stop()  
+
+    def start_stream_plot(self):
+        """Start periodic callbacks for the stream plot"""
+        self.stop_acoustic_camera_plot()
+
+        if self.stream_callback is None:
+            self.stream_callback = curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
+
+    
     def stop_stream_plot(self):
         """Stop periodic callbacks for the stream plot"""
         if self.stream_callback is not None:

@@ -20,7 +20,7 @@ frame_height = int(vc.get(cv2.CAP_PROP_FRAME_HEIGHT) * VIDEO_SCALE_FACTOR)
 
 # Initialize video stream and model processor
 config = ConfigUMA()
-video_stream = VideoStream(frame_width, frame_height, vc)
+video_stream = VideoStream(frame_width, frame_height, vc, video_index)
 model_processor = ModelProcessor(frame_width, frame_height, config, mic_index)
 
 # Create the UI layout using the Dashboard class
