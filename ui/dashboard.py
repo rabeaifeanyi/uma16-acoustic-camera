@@ -4,14 +4,10 @@ from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-ESTIMATION_UPDATE_INTERVAL = 1000 #ms
-CAMERA_UPDATE_INTERVAL = 100
-STREAM_UPDATE_INTERVAL = 500
-
 class Dashboard:
     """ Dashboard class for the acoustic camera application """
     
-    def __init__(self, video_stream, model_processor, mic_array_config):
+    def __init__(self, video_stream, model_processor, mic_array_config, estimation_update_interval, camera_update_interval, stream_update_interval):
         """Initialize the dashboard with the video stream, model processor, and configuration."""
         
         self.video_stream = video_stream
@@ -23,7 +19,11 @@ class Dashboard:
         )
         
         self.stream_plot = StreamPlot()
-
+        
+        self.estimation_update_interval = estimation_update_interval
+        self.camera_update_interval = camera_update_interval
+        self.stream_update_interval = stream_update_interval
+        
         # Initialisierte Callback-IDs
         self.camera_view_callback = None
         self.estimation_callback = None
@@ -88,19 +88,13 @@ class Dashboard:
     def start_acoustic_camera_plot(self):
         """Start periodic callbacks for the acoustic camera plot"""
         self.stop_stream_plot()
+        self.video_stream.start()  # Start the camera stream
 
         if self.camera_view_callback is None:
-            self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, CAMERA_UPDATE_INTERVAL)
+            self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
         
         if self.estimation_callback is None:
-            self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, ESTIMATION_UPDATE_INTERVAL)
-
-    def start_stream_plot(self):
-        """Start periodic callbacks for the stream plot"""
-        self.stop_acoustic_camera_plot()
-
-        if self.stream_callback is None:
-            self.stream_callback = curdoc().add_periodic_callback(self.update_stream, STREAM_UPDATE_INTERVAL)
+            self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
 
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
@@ -112,6 +106,16 @@ class Dashboard:
             curdoc().remove_periodic_callback(self.estimation_callback)
             self.estimation_callback = None
 
+        self.video_stream.stop()  
+
+    def start_stream_plot(self):
+        """Start periodic callbacks for the stream plot"""
+        self.stop_acoustic_camera_plot()
+
+        if self.stream_callback is None:
+            self.stream_callback = curdoc().add_periodic_callback(self.update_stream, self.stream_update_interval)
+
+    
     def stop_stream_plot(self):
         """Stop periodic callbacks for the stream plot"""
         if self.stream_callback is not None:
