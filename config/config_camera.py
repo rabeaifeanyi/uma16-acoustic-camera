@@ -40,4 +40,4 @@ def usb_camera_index():
                 usb_camera_found = True
             cap.release()
             
-    return 0 
+    return 2 

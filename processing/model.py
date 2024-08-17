@@ -54,6 +54,7 @@ class ModelProcessor:
         model_config = ConfigBase.from_toml(self.model_config_path)
         self.pipeline = model_config.datasets[1].pipeline.create_instance()
         self.ref_mic_index = model_config.datasets[0].pipeline.args['ref_mic_index']
+        print("REF MIC INDEX IS", self.ref_mic_index)
     
         model_config.datasets[1].validation.cache=False # do not cache the dataset
         self.model = tf.keras.models.load_model(self.ckpt_path)

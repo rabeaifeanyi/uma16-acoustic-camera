@@ -67,9 +67,8 @@ class ConfigUMA(DatasetSyntheticConfig):
     def mic_positions(self, shifted=True):
         """Get the positions of the microphones.
         """
-        # TODO Welches Mikro nehmen wir als Referenz? Hier Mikro obere linke Ecke
         if shifted:
-            return self.mics.mpos + np.array([[0.063, -0.063, 0]]).T
+            return self.mics.mpos + np.array([[-0.021, 0.063, 0]]).T
         
         return self.mics.mpos
     
@@ -77,7 +76,8 @@ class ConfigUMA(DatasetSyntheticConfig):
         # [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]
         #  [-0.063 -0.063 -0.021 -0.021  0.021  0.021  0.063  0.063  0.063  0.063  0.021  0.021 -0.021 -0.021 -0.063 -0.063]
         #  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]
-
+        # ref mic index: 0
+        
 def uma16_index():
     """Get the index of the UMA-16 microphone array.
     """
