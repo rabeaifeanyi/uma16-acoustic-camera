@@ -1,7 +1,7 @@
 from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup, RadioButtonGroup # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot, StreamPlot
+from .plotting import AcousticCameraPlot, StreamPlot, LocationPlot
 from .config_ui import *
 
 class Dashboard:
@@ -27,6 +27,12 @@ class Dashboard:
         )
         
         self.stream_plot = StreamPlot()
+        
+        self.location_plot = LocationPlot(
+            frame_width=video_stream.frame_width,
+            frame_height=video_stream.frame_height,
+            mic_positions=mic_array_config.mic_positions()
+        )
         
         self.estimation_update_interval = estimation_update_interval
         self.camera_update_interval = camera_update_interval
@@ -57,7 +63,6 @@ class Dashboard:
             }
         </style>
         """
-        
         header = Div(text=f"<h1 style='color:{FONTCOLOR}; font-family:{FONT}; margin-left: 320px;'>Acoustic Camera</h1>", margin=(20, 0, 0, 0))
         
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
@@ -70,11 +75,13 @@ class Dashboard:
                          plot_selector)
         
         self.stream_plot.fig.visible = False
+        self.location_plot.fig.visible = False
         
         content_layout = column(
             header,
             self.acoustic_camera_plot.fig,
             self.stream_plot.fig,
+            self.location_plot.fig,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -96,7 +103,7 @@ class Dashboard:
     def start_acoustic_camera_plot(self):
         """Start periodic callbacks for the acoustic camera plot"""
         self.stop_stream_plot()
-        self.video_stream.start()  # Start the camera stream
+        self.video_stream.start()
 
         if self.camera_view_callback is None:
             self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
@@ -133,10 +140,12 @@ class Dashboard:
         if new == 0:
             self.acoustic_camera_plot.fig.visible = True
             self.stream_plot.fig.visible = False
+            self.location_plot.fig.visible = False
             self.start_acoustic_camera_plot()
         elif new == 1:
             self.acoustic_camera_plot.fig.visible = False
             self.stream_plot.fig.visible = True
+            self.location_plot.fig.visible = True
             self.start_stream_plot()
 
     def toggle_mic_visibility(self, visible):
@@ -163,7 +172,9 @@ class Dashboard:
         
     def update_stream(self):
         stream_data = self.model_processor.get_uma_data()
+        loc_data = self.model_processor.uma16_ssl()
         self.stream_plot.update_plot(stream_data)
+        self.location_plot.update_plot(loc_data)
 
     def get_layout(self):
         return self.dashboard_layout
