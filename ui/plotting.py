@@ -10,7 +10,7 @@ YMAX = 1.75
 Z = 2.0
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions):
+    def __init__(self, frame_width, frame_height, mic_positions, view_range):
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.mic_positions = mic_positions
@@ -20,21 +20,24 @@ class AcousticCameraPlot:
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
         self.arrow_x = None
         self.arrow_y = None
-
+        self.xmin = view_range[0]
+        self.xmax = view_range[1]
+        self.ymin = view_range[2]
+        self.ymax = view_range[3]
         self.fig = self._create_plot()
 
     def _create_plot(self):
         fig = figure(width=self.frame_width, 
                      height=self.frame_height, 
-                     x_range=(XMIN, XMAX), 
-                     y_range=(YMIN, YMAX),
+                     x_range=(self.xmin, self.xmax), 
+                     y_range=(self.ymin, self.ymax),
                      output_backend='webgl')
         
         fig.image_rgba(image='image_data', 
-                       x=XMIN, 
-                       y=YMIN, 
-                       dw=(XMAX-XMIN), 
-                       dh=(YMAX-YMIN), 
+                       x=self.xmax, 
+                       y=self.ymin, 
+                       dw=(self.xmax-self.xmin), 
+                       dh=(self.ymax-self.ymin), 
                        source=self.camera_cds, 
                        alpha=VIDEOALPHA)
         

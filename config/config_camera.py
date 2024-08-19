@@ -41,3 +41,10 @@ def usb_camera_index():
             cap.release()
             
     return 2 
+
+def calculate_view_range(Z, alpha_x, alpha_y):
+    xmax= Z * np.tan(np.radians(alpha_x / 2))
+    xmin = -xmax
+    ymax = Z * np.tan(np.radians(alpha_y / 2))
+    ymin = -ymax
+    return xmin, xmax, ymin, ymax

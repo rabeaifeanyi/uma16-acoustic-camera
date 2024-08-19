@@ -14,6 +14,7 @@ class Dashboard:
                  estimation_update_interval, 
                  camera_update_interval, 
                  stream_update_interval,
+                 view_range,
                  dummy_data=True):
         """Initialize the dashboard with the video stream, model processor, and configuration."""
         self.dummy_data = dummy_data
@@ -23,7 +24,8 @@ class Dashboard:
         self.acoustic_camera_plot = AcousticCameraPlot(
             frame_width=video_stream.frame_width,
             frame_height=video_stream.frame_height,
-            mic_positions=mic_array_config.mic_positions()
+            mic_positions=mic_array_config.mic_positions(),
+            view_range=view_range
         )
         
         self.stream_plot = StreamPlot()

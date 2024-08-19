@@ -2,13 +2,16 @@ import acoular as ac # type: ignore
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from processing import ModelProcessor
-from config import ConfigUMA, usb_camera_index, uma16_index
+from config import ConfigUMA, usb_camera_index, uma16_index, calculate_view_range
 
 ac.config.global_caching = 'none'
 
 # Video configurations
 VIDEO_SCALE_FACTOR = 1
 UNDISTORT = False
+Y = 2.0
+alpha_x, alpha_y = 60, 45
+view_range = calculate_view_range(Y, alpha_x, alpha_y)
 
 # Update rate configurations
 ESTIMATION_UPDATE_INTERVAL = 1000 #ms
@@ -42,7 +45,8 @@ dashboard = Dashboard(video_stream,
                       config_uma, 
                       ESTIMATION_UPDATE_INTERVAL, 
                       CAMERA_UPDATE_INTERVAL, 
-                      STREAM_UPDATE_INTERVAL)
+                      STREAM_UPDATE_INTERVAL,
+                      view_range)
 
 # Add the layout to the document
 doc = curdoc()
