@@ -2,7 +2,7 @@ import acoular as ac # type: ignore
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from processing import ModelProcessor
-from config import ConfigUMA, uma16_index, calculate_view_range
+from config import ConfigUMA, uma16_index, calculate_alphas
 import numpy as np
 
 ac.config.global_caching = 'none'
@@ -12,10 +12,8 @@ VIDEO_SCALE_FACTOR = 1
 UNDISTORT = False
 Z = 2 
 # TODO genauer Messen und nochmal scharf nachdenken, ob das wirklich so einfach ist
-dx = 143
-dz = 58
-
-view_range = calculate_view_range(Z, dx=dx, dz=dz)
+DX, DZ = 143, 58
+alphas = calculate_alphas(Z, dx=DX, dz=DZ)
 
 # Update rate configurations
 ESTIMATION_UPDATE_INTERVAL = 1000 #ms
@@ -50,7 +48,7 @@ dashboard = Dashboard(video_stream,
                       ESTIMATION_UPDATE_INTERVAL, 
                       CAMERA_UPDATE_INTERVAL, 
                       STREAM_UPDATE_INTERVAL,
-                      view_range)
+                      alphas)
 
 # Add the layout to the document
 doc = curdoc()

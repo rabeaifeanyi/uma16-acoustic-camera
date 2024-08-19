@@ -48,3 +48,15 @@ def calculate_view_range(Z, ratio=(4, 3), dx=None, dy=None, dz=None, alpha_x=Non
     print(f"View range: xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}")
     
     return xmin, xmax, ymin, ymax
+
+
+def calculate_alphas(Z, ratio=(4, 3), dx=None, dy=None, dz=None):    
+    if dx is not None and dz is not None:
+        alpha_x = 2 * np.arctan(dx / (2 * dz))
+        alpha_y = 2 * np.arctan((ratio[1] * dx) / (2 * ratio[0] * dz))
+        
+    elif dy is not None and dz is not None:
+        alpha_y = 2 * np.arctan(dy / (2 * dz))
+        alpha_x = 2 * np.arctan((ratio[0] * dy) / (2 * ratio[1] * dz))
+
+    return alpha_x, alpha_y

@@ -1,6 +1,7 @@
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, Arrow, VeeHead # type: ignore
 from .config_ui import *
+import numpy as np
 
 XMIN = -2.5
 XMAX = 2.5
@@ -8,18 +9,20 @@ YMIN = -1.75
 YMAX = 1.75
 Z = 2.0
 
+# TODO auch camera mitscalieren, wenn Z geändert wird
+
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, view_range, dummy_data=True):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.mic_positions = mic_positions
-
         self.camera_cds = ColumnDataSource({'image_data': []})
         self.cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
         self.arrow_x = None
         self.arrow_y = None
-        self.xmin, self.xmax, self.ymin, self.ymax = view_range
+        self.alpha_x, self.alpha_y = alphas
+        self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         self.fig = self._create_plot()
 
     def _create_plot(self):
@@ -58,6 +61,7 @@ class AcousticCameraPlot:
                     source=self.cds)
         
         self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
+        
         fig.scatter(x='x', 
                     y='y', 
                     legend_label='Microphones', 
@@ -89,8 +93,30 @@ class AcousticCameraPlot:
         fig.background_fill_color = PLOT_BACKGROUND_COLOR
         fig.border_fill_color = BACKGROUND_COLOR
         fig.outline_line_color = None 
-        
         return fig
+
+    def update_view_range(self, view_range):
+        self.xmin, self.xmax, self.ymin, self.ymax = view_range
+        self.fig.x_range.start = self.xmin
+        self.fig.x_range.end = self.xmax
+        self.fig.y_range.start = self.ymin
+        self.fig.y_range.end = self.ymax
+        
+        # TODO Check if this works
+        self.fig.image_rgba(image='image_data', 
+                       x=self.xmin, 
+                       y=self.ymin, 
+                       dw=(self.xmax-self.xmin), 
+                       dh=(self.ymax-self.ymin), 
+                       source=self.camera_cds, 
+                       alpha=VIDEOALPHA)
+
+    def calculate_view_range(self, Z):
+        xmax = Z * np.tan(self.alpha_x / 2)
+        xmin = -xmax
+        ymax = Z * np.tan(self.alpha_y / 2)
+        ymin = -ymax
+        return xmin, xmax, ymin, ymax
 
     def update_plot(self, model_data):
         self.cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
@@ -108,6 +134,7 @@ class AcousticCameraPlot:
         if self.arrow_x and self.arrow_y:
             self.arrow_x.visible = visible
             self.arrow_y.visible = visible
+
 
 class StreamPlot():
     def __init__(self):

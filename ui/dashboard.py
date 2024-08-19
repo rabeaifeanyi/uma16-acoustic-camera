@@ -1,8 +1,9 @@
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup, RadioButtonGroup # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput # type: ignore
 from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot, LocationPlot
 from .config_ui import *
+import numpy as np
 
 class Dashboard:
     """ Dashboard class for the acoustic camera application """
@@ -14,24 +15,22 @@ class Dashboard:
                  estimation_update_interval, 
                  camera_update_interval, 
                  stream_update_interval,
-                 view_range,
+                 alphas,
                  dummy_data=True):
         """Initialize the dashboard with the video stream, model processor, and configuration."""
         self.dummy_data = dummy_data
-        
+        self.Z = 2.0
+        self.alphas = alphas
         self.video_stream = video_stream
         self.model_processor = model_processor
         self.acoustic_camera_plot = AcousticCameraPlot(
             frame_width=video_stream.frame_width,
             frame_height=video_stream.frame_height,
             mic_positions=mic_array_config.mic_positions(),
-            view_range=view_range
+            view_range=(-2.5, 2.5, -1.75, 1.75)
         )
         
-        print(video_stream.frame_width, video_stream.frame_height)
-        
         self.stream_plot = StreamPlot()
-        
         self.location_plot = LocationPlot(
             frame_width=video_stream.frame_width,
             frame_height=video_stream.frame_height,
@@ -42,7 +41,8 @@ class Dashboard:
         self.camera_update_interval = camera_update_interval
         self.stream_update_interval = stream_update_interval
         
-        # Initialisierte Callback-IDs
+        self.z_input = TextInput(value=str(self.Z), title="Scale Z")
+        
         self.camera_view_callback = None
         self.estimation_callback = None
         self.stream_callback = None
@@ -75,6 +75,7 @@ class Dashboard:
         plot_selector = RadioButtonGroup(labels=["Dummy Acoustic Camera", "Model Results"], active=0)
         
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
+                         self.z_input,  # Füge das TextInput-Widget hier hinzu
                          checkbox_group,
                          plot_selector)
         
@@ -102,7 +103,19 @@ class Dashboard:
 
     def setup_callbacks(self):
         """Initial setup for periodic callbacks"""
+        self.z_input.on_change("value", self.update_scale_z)  # Callback für die Z-Wert-Eingabe
         self.start_acoustic_camera_plot()
+
+    def update_scale_z(self, attr, old, new):
+        """Update the Z scale and recalculate the view range."""
+        try:
+            Z = float(new)
+            dx = 143  # Beispielwert
+            dz = 58   # Beispielwert
+            new_view_range = calculate_view_range(Z, dx=dx, dz=dz)
+            self.acoustic_camera_plot.update_view_range(new_view_range)
+        except ValueError:
+            pass  # Ungültige Eingaben ignorieren
 
     def start_acoustic_camera_plot(self):
         """Start periodic callbacks for the acoustic camera plot"""
@@ -114,6 +127,7 @@ class Dashboard:
         
         if self.estimation_callback is None:
             self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
+
 
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
@@ -182,3 +196,13 @@ class Dashboard:
 
     def get_layout(self):
         return self.dashboard_layout
+
+def calculate_view_range(Z, alpha_x, alpha_y):
+    xmax = Z * np.tan(alpha_x / 2)
+    xmin = -xmax
+    ymax = Z * np.tan(alpha_y / 2)
+    ymin = -ymax
+    
+    print(f"View range: xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}")
+    
+    return xmin, xmax, ymin, ymax
