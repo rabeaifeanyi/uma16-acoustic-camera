@@ -2,16 +2,20 @@ import acoular as ac # type: ignore
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from processing import ModelProcessor
-from config import ConfigUMA, usb_camera_index, uma16_index, calculate_view_range
+from config import ConfigUMA, uma16_index, calculate_view_range
+import numpy as np
 
 ac.config.global_caching = 'none'
 
 # Video configurations
 VIDEO_SCALE_FACTOR = 1
 UNDISTORT = False
-Y = 2.0
-alpha_x, alpha_y = 60, 45
-view_range = calculate_view_range(Y, alpha_x, alpha_y)
+Z = 2 
+# TODO genauer Messen und nochmal scharf nachdenken, ob das wirklich so einfach ist
+dx = 143
+dz = 58
+
+view_range = calculate_view_range(Z, dx=dx, dz=dz)
 
 # Update rate configurations
 ESTIMATION_UPDATE_INTERVAL = 1000 #ms
@@ -23,7 +27,7 @@ model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_lear
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
-video_index = 0 #usb_camera_index() 
+video_index = 2 #usb_camera_index() 
 mic_index = uma16_index()
 
 # Initialize video stream and model processor

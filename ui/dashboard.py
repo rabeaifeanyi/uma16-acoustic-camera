@@ -28,6 +28,8 @@ class Dashboard:
             view_range=view_range
         )
         
+        print(video_stream.frame_width, video_stream.frame_height)
+        
         self.stream_plot = StreamPlot()
         
         self.location_plot = LocationPlot(

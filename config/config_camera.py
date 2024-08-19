@@ -25,26 +25,26 @@ def load_calibration_data(csv_file):
     
     return camera_matrix, dist_coeffs, r_vecs, t_vecs
 
-def usb_camera_index():
-    # TODO: Implement this method, this does not work, indices are chaning
-    """Get the index of the USB camera. 
-    This method is not universal and may need to be adjusted for different systems.
-    """
-    usb_camera_found = False
-
-    indices_to_check = [0, 2]
-    for index in indices_to_check:
-        cap = cv2.VideoCapture(index, cv2.CAP_ANY)
-        if cap.isOpened():
-            if index == 2: 
-                usb_camera_found = True
-            cap.release()
-            
-    return 2 
-
-def calculate_view_range(Z, alpha_x, alpha_y):
-    xmax= Z * np.tan(np.radians(alpha_x / 2))
+def calculate_view_range(Z, ratio=(4, 3), dx=None, dy=None, dz=None, alpha_x=None, alpha_y=None):
+    if alpha_x is not None and alpha_y is not None:
+        pass
+    
+    elif dx is not None and dz is not None:
+        alpha_x = 2 * np.arctan(dx / (2 * dz))
+        alpha_y = 2 * np.arctan((ratio[1] * dx) / (2 * ratio[0] * dz))
+        
+    elif dy is not None and dz is not None:
+        alpha_y = 2 * np.arctan(dy / (2 * dz))
+        alpha_x = 2 * np.arctan((ratio[0] * dy) / (2 * ratio[1] * dz))
+    
+    elif alpha_x is None or alpha_y is None:
+        raise ValueError("Not enough information provided to calculate view range.")
+        
+    xmax = Z * np.tan(alpha_x / 2)
     xmin = -xmax
-    ymax = Z * np.tan(np.radians(alpha_y / 2))
+    ymax = Z * np.tan(alpha_y / 2)
     ymin = -ymax
+    
+    print(f"View range: xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}")
+    
     return xmin, xmax, ymin, ymax
