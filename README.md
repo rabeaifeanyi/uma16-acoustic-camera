@@ -5,8 +5,8 @@
 See also ba_env.yaml.
 
 - acoular
-- acoupipe
-- modelsdfg (dev)
+- acoupipe (dev)
+- modelsdfg (main)
 - opencv  (must be compatible with tensorflow 2.15, e.g. version 4.9)
 - tensorflow (version 2.15)
 

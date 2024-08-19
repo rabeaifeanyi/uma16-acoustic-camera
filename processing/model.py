@@ -3,6 +3,9 @@ import tensorflow as tf # type: ignore
 import acoular as ac # type: ignore
 from acoupipe.datasets.synthetic import DatasetSynthetic # type: ignore
 from modelsdfg.transformer.config import ConfigBase # type: ignore
+from.csm import CSM, calculate_combined_csm
+
+center_frequencies = [250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000]
 
 class ModelProcessor:
     """Model processor for the UMA-16 microphone array.
@@ -25,6 +28,8 @@ class ModelProcessor:
         self.recording_time = 1
         self.dev.numsamples = int(self.recording_time * self.dev.sample_freq)
         self.t = np.arange(self.dev.numsamples) / self.dev.sample_freq
+        self.block_size = 128
+        self.freqs = np.fft.rfftfreq(self.block_size, 1/self.dev.sample_freq)        
         
         self.model_dir = model_dir
         self.model_config_path = model_config_path
@@ -57,45 +62,58 @@ class ModelProcessor:
         self.model = tf.keras.models.load_model(self.ckpt_path)
     
     def _prediction(self):
-        csm = self._calc_csm()
+        csm, csm_norm = self._calc_csm()
         eigmode = self.model.preprocessing(csm[np.newaxis]).numpy()
         strength_pred, loc_pred, noise_pred = self.model.predict(eigmode)
         strength_pred = strength_pred.squeeze()
-        csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
-        csm = csm / csm_norm
         strength_pred *= np.real(csm_norm)
         loc_pred = self.pipeline.recover_loc(loc_pred.squeeze(), aperture=self.uma_config.mics.aperture)
         return strength_pred, loc_pred, noise_pred
     
-    def _calc_csm_faster(self):
+    def _calc_csm(self):
+        # This is not the final CSM CALCULATION!! 
+        # This just works with the model
+        signal = ac.tools.return_result(self.dev, num=256)
+        cnum_of_samples, num_of_channels = signal.shape
+        fft_signal = np.fft.fft(signal, axis=0)
+        csm = np.einsum('ij,ik->jk', fft_signal, np.conjugate(fft_signal)) / self.dev.numsamples
+        csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
+        csm = csm / csm_norm
+        return csm, csm_norm
+        
+    def _calc_csm_rabea(self):
         # TODO Fragen
+        signal = ac.tools.return_result(self.dev, num=256)
+        csm = CSM(signal, self.dev.sample_freq, block_size=self.block_size).calc_csm()
+        csm = calculate_combined_csm(csm, self.freqs, center_frequencies)
+        
+        # at this point, the CSM is in [Volt^2] since the microphone channel data
+        # is a voltage strea -> we need to convert it to squared sound pressure values [Pa^2]
+        # we do not account for the true sensitivity of the MEMS microphones here! 
+        # I just use a standard sensitivity of 16 mV/Pa for all microphones
+        # TODO Fragen
+        csm = csm / 0.0016**2
+        
+        # Normalize the CSM
+        csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
+        csm = csm / csm_norm
+        
+        return csm, csm_norm
+    
+    # TODO mit Acoular umsetzen
+    def _calc_csm_faster(self):
         freq_data = ac.PowerSpectra(
             time_data=self.dev, 
             block_size=128, 
             window='Hanning'
             )
         f_ind = np.searchsorted(freq_data.fftfreq(), 800)
-        csm = freq_data.csm[f_ind] 
-        lower_freq = 0
-        upper_freq = 10000
-        freq_indices = np.where((freq_data.fftfreq() >= lower_freq) & (freq_data.fftfreq() <= upper_freq))[0]
-        summed_csm = np.zeros_like(freq_data.csm[freq_indices[0]])
-        
-        for f_ind in freq_indices:
-            summed_csm += freq_data.csm[f_ind]
-            
-        csm = csm / 0.0016**2 # TODO Fragen
+        csm = freq_data.csm[f_ind]             
+        csm = csm / 0.0016**2
+        csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
+        csm = csm / csm_norm
  
-        return csm
-    
-    def _calc_csm(self):
-        # TODO Fragen
-        signal = ac.tools.return_result(self.dev, num=256)
-        num_of_samples = signal.shape[0]
-        fft_signal = np.fft.fft(signal, axis=0)
-        csm = np.einsum('ij,ik->jk', fft_signal, np.conjugate(fft_signal)) / num_of_samples
-
-        return csm
+        return csm, csm_norm
 
     def uma16_ssl(self):
         strength_pred, loc_pred, noise_pred = self._prediction()
