@@ -43,7 +43,6 @@ class ModelProcessor:
                                                         progress_bar=False)
     
     def get_uma_data(self):
-        # TODO ist return_result die richtige Methode?
         signal = ac.tools.return_result(self.dev, num=256)
         return {
             'x': self.t.tolist(), 
@@ -54,9 +53,7 @@ class ModelProcessor:
         model_config = ConfigBase.from_toml(self.model_config_path)
         self.pipeline = model_config.datasets[1].pipeline.create_instance()
         self.ref_mic_index = model_config.datasets[0].pipeline.args['ref_mic_index']
-        print("REF MIC INDEX IS", self.ref_mic_index)
-    
-        model_config.datasets[1].validation.cache=False # do not cache the dataset
+        model_config.datasets[1].validation.cache=False
         self.model = tf.keras.models.load_model(self.ckpt_path)
     
     def _prediction(self):
@@ -70,8 +67,8 @@ class ModelProcessor:
         loc_pred = self.pipeline.recover_loc(loc_pred.squeeze(), aperture=self.uma_config.mics.aperture)
         return strength_pred, loc_pred, noise_pred
     
-    def _calc_csm(self):
-        # TODO
+    def _calc_csm_faster(self):
+        # TODO Fragen
         freq_data = ac.PowerSpectra(
             time_data=self.dev, 
             block_size=128, 
@@ -87,10 +84,19 @@ class ModelProcessor:
         for f_ind in freq_indices:
             summed_csm += freq_data.csm[f_ind]
             
-        csm = csm / 0.0016**2 # TODO
-        
+        csm = csm / 0.0016**2 # TODO Fragen
+ 
         return csm
-              
+    
+    def _calc_csm(self):
+        # TODO Fragen
+        signal = ac.tools.return_result(self.dev, num=256)
+        num_of_samples = signal.shape[0]
+        fft_signal = np.fft.fft(signal, axis=0)
+        csm = np.einsum('ij,ik->jk', fft_signal, np.conjugate(fft_signal)) / num_of_samples
+
+        return csm
+
     def uma16_ssl(self):
         strength_pred, loc_pred, noise_pred = self._prediction()
         

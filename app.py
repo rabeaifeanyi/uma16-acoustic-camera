@@ -20,7 +20,7 @@ model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_lear
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
-video_index = 2 #usb_camera_index() 
+video_index = 0 #usb_camera_index() 
 mic_index = uma16_index()
 
 # Initialize video stream and model processor

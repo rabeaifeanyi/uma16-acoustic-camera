@@ -68,7 +68,7 @@ class Dashboard:
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
                                        active=[0, 1])
         
-        plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream Plot"], active=0)
+        plot_selector = RadioButtonGroup(labels=["Dummy Acoustic Camera", "Model Results"], active=0)
         
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
                          checkbox_group,
