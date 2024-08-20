@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import csv
 
@@ -25,38 +24,16 @@ def load_calibration_data(csv_file):
     
     return camera_matrix, dist_coeffs, r_vecs, t_vecs
 
-def calculate_view_range(Z, ratio=(4, 3), dx=None, dy=None, dz=None, alpha_x=None, alpha_y=None):
-    if alpha_x is not None and alpha_y is not None:
-        pass
-    
-    elif dx is not None and dz is not None:
-        alpha_x = 2 * np.arctan(dx / (2 * dz))
-        alpha_y = 2 * np.arctan((ratio[1] * dx) / (2 * ratio[0] * dz))
-        
-    elif dy is not None and dz is not None:
-        alpha_y = 2 * np.arctan(dy / (2 * dz))
-        alpha_x = 2 * np.arctan((ratio[0] * dy) / (2 * ratio[1] * dz))
-    
-    elif alpha_x is None or alpha_y is None:
-        raise ValueError("Not enough information provided to calculate view range.")
-        
-    xmax = Z * np.tan(alpha_x / 2)
-    xmin = -xmax
-    ymax = Z * np.tan(alpha_y / 2)
-    ymin = -ymax
-    
-    print(f"View range: xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}")
-    
-    return xmin, xmax, ymin, ymax
-
-
 def calculate_alphas(Z, ratio=(4, 3), dx=None, dy=None, dz=None):    
-    if dx is not None and dz is not None:
+    if dx and dz:
         alpha_x = 2 * np.arctan(dx / (2 * dz))
         alpha_y = 2 * np.arctan((ratio[1] * dx) / (2 * ratio[0] * dz))
         
-    elif dy is not None and dz is not None:
-        alpha_y = 2 * np.arctan(dy / (2 * dz))
+    elif dy and dz:
         alpha_x = 2 * np.arctan((ratio[0] * dy) / (2 * ratio[1] * dz))
+        alpha_y = 2 * np.arctan(dy / (2 * dz))
 
+    else:
+        raise ValueError("Either dx and dz or dy and dz must be provided.")
+        
     return alpha_x, alpha_y

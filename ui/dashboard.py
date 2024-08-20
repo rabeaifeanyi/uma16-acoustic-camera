@@ -1,41 +1,27 @@
 from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot, StreamPlot, LocationPlot
+from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
-import numpy as np
 
 class Dashboard:
     """ Dashboard class for the acoustic camera application """
     
-    def __init__(self, 
-                 video_stream, 
-                 model_processor, 
-                 mic_array_config, 
-                 estimation_update_interval, 
-                 camera_update_interval, 
-                 stream_update_interval,
-                 alphas,
-                 dummy_data=True):
-        """Initialize the dashboard with the video stream, model processor, and configuration."""
+    def __init__(self, video_stream, model_processor, mic_array_config, estimation_update_interval, camera_update_interval, stream_update_interval, alphas, dummy_data=True):
+
         self.dummy_data = dummy_data
         self.Z = 2.0
         self.alphas = alphas
         self.video_stream = video_stream
         self.model_processor = model_processor
         self.acoustic_camera_plot = AcousticCameraPlot(
-            frame_width=video_stream.frame_width,
-            frame_height=video_stream.frame_height,
-            mic_positions=mic_array_config.mic_positions(),
-            view_range=(-2.5, 2.5, -1.75, 1.75)
-        )
+                                        frame_width=video_stream.frame_width,
+                                        frame_height=video_stream.frame_height,
+                                        mic_positions=mic_array_config.mic_positions(),
+                                        alphas = self.alphas
+                                    )
         
         self.stream_plot = StreamPlot()
-        self.location_plot = LocationPlot(
-            frame_width=video_stream.frame_width,
-            frame_height=video_stream.frame_height,
-            mic_positions=mic_array_config.mic_positions()
-        )
         
         self.estimation_update_interval = estimation_update_interval
         self.camera_update_interval = camera_update_interval
@@ -72,21 +58,19 @@ class Dashboard:
         checkbox_group = CheckboxGroup(labels=["Show Microphone Geometry", "Show Origin"], 
                                        active=[0, 1])
         
-        plot_selector = RadioButtonGroup(labels=["Dummy Acoustic Camera", "Model Results"], active=0)
+        plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream"], active=0)
         
         sidebar = column(Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
-                         self.z_input,  # Füge das TextInput-Widget hier hinzu
+                         self.z_input, 
                          checkbox_group,
                          plot_selector)
         
         self.stream_plot.fig.visible = False
-        self.location_plot.fig.visible = False
         
         content_layout = column(
             header,
             self.acoustic_camera_plot.fig,
             self.stream_plot.fig,
-            self.location_plot.fig,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -110,12 +94,9 @@ class Dashboard:
         """Update the Z scale and recalculate the view range."""
         try:
             Z = float(new)
-            dx = 143  # Beispielwert
-            dz = 58   # Beispielwert
-            new_view_range = calculate_view_range(Z, dx=dx, dz=dz)
-            self.acoustic_camera_plot.update_view_range(new_view_range)
+            self.acoustic_camera_plot.update_view_range(Z)
         except ValueError:
-            pass  # Ungültige Eingaben ignorieren
+            pass
 
     def start_acoustic_camera_plot(self):
         """Start periodic callbacks for the acoustic camera plot"""
@@ -127,7 +108,6 @@ class Dashboard:
         
         if self.estimation_callback is None:
             self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
-
 
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
@@ -158,12 +138,10 @@ class Dashboard:
         if new == 0:
             self.acoustic_camera_plot.fig.visible = True
             self.stream_plot.fig.visible = False
-            self.location_plot.fig.visible = False
             self.start_acoustic_camera_plot()
         elif new == 1:
             self.acoustic_camera_plot.fig.visible = False
             self.stream_plot.fig.visible = True
-            self.location_plot.fig.visible = True
             self.start_stream_plot()
 
     def toggle_mic_visibility(self, visible):
@@ -190,19 +168,7 @@ class Dashboard:
         
     def update_stream(self):
         stream_data = self.model_processor.get_uma_data()
-        loc_data = self.model_processor.uma16_ssl()
         self.stream_plot.update_plot(stream_data)
-        self.location_plot.update_plot(loc_data)
 
     def get_layout(self):
         return self.dashboard_layout
-
-def calculate_view_range(Z, alpha_x, alpha_y):
-    xmax = Z * np.tan(alpha_x / 2)
-    xmin = -xmax
-    ymax = Z * np.tan(alpha_y / 2)
-    ymin = -ymax
-    
-    print(f"View range: xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}")
-    
-    return xmin, xmax, ymin, ymax

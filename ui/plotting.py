@@ -3,12 +3,6 @@ from bokeh.models import ColumnDataSource, Arrow, VeeHead # type: ignore
 from .config_ui import *
 import numpy as np
 
-XMIN = -2.5
-XMAX = 2.5
-YMIN = -1.75
-YMAX = 1.75
-Z = 2.0
-
 # TODO auch camera mitscalieren, wenn Z geändert wird
 
 class AcousticCameraPlot:
@@ -16,13 +10,17 @@ class AcousticCameraPlot:
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.mic_positions = mic_positions
+        
         self.camera_cds = ColumnDataSource({'image_data': []})
         self.cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
+        
         self.arrow_x = None
         self.arrow_y = None
+        
         self.alpha_x, self.alpha_y = alphas
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
+       
         self.fig = self._create_plot()
 
     def _create_plot(self):
@@ -93,23 +91,17 @@ class AcousticCameraPlot:
         fig.background_fill_color = PLOT_BACKGROUND_COLOR
         fig.border_fill_color = BACKGROUND_COLOR
         fig.outline_line_color = None 
+        
         return fig
 
-    def update_view_range(self, view_range):
-        self.xmin, self.xmax, self.ymin, self.ymax = view_range
+    def update_view_range(self, Z):
+        self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         self.fig.x_range.start = self.xmin
         self.fig.x_range.end = self.xmax
         self.fig.y_range.start = self.ymin
         self.fig.y_range.end = self.ymax
         
-        # TODO Check if this works
-        self.fig.image_rgba(image='image_data', 
-                       x=self.xmin, 
-                       y=self.ymin, 
-                       dw=(self.xmax-self.xmin), 
-                       dh=(self.ymax-self.ymin), 
-                       source=self.camera_cds, 
-                       alpha=VIDEOALPHA)
+    #TODO update view range video also
 
     def calculate_view_range(self, Z):
         xmax = Z * np.tan(self.alpha_x / 2)
@@ -135,7 +127,6 @@ class AcousticCameraPlot:
             self.arrow_x.visible = visible
             self.arrow_y.visible = visible
 
-
 class StreamPlot():
     def __init__(self):
         self.cds_list = [ColumnDataSource(data=dict(x=[], y=[])) for _ in range(16)]
@@ -158,91 +149,3 @@ class StreamPlot():
             y_data = [row[i] for row in stream_data['y']]
             cds.data = dict(x=stream_data['x'], y=y_data)
             
-class LocationPlot():
-    def __init__(self, frame_width, frame_height, mic_positions):
-        self.frame_width = frame_width
-        self.frame_height = frame_height
-        self.mic_positions = mic_positions
-
-        self.camera_cds = ColumnDataSource({'image_data': []})
-        self.cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
-        self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
-        self.arrow_x = None
-        self.arrow_y = None
-
-        self.fig = self._create_plot()
-        
-    def _create_plot(self):
-        fig = figure(width=self.frame_width, 
-                     height=self.frame_height, 
-                     x_range=(XMIN, XMAX), 
-                     y_range=(YMIN, YMAX),
-                     output_backend='webgl')
-        
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Strength of Source', 
-                    marker='circle', 
-                    size='s', 
-                    color=SHADOWCOLOR, 
-                    alpha=SHADOWALPHA, 
-                    line_color=None,
-                    source=self.cds)
-        
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Sound Source', 
-                    marker='circle', 
-                    size=DOTSIZE, 
-                    color=DOTCOLOR, 
-                    alpha=DOTALPHA, 
-                    source=self.cds)
-        
-        self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Microphones', 
-                    marker='circle', 
-                    size=MICSIZE, 
-                    color=MICCOLOR, 
-                    line_color=MICLINECOLOR,
-                    alpha=MICALPHA, 
-                    source=self.mic_cds)
-        
-        self.arrow_x = Arrow(end=VeeHead(size=ORIGINHEADSIZE,fill_color=ORIGINCOLOR, line_color=ORIGINCOLOR), 
-                             x_start=0, 
-                             y_start=0, 
-                             x_end=ORIGINLENGTH, 
-                             y_end=0, 
-                             line_width=ORIGINLINEWIDTH,
-                             line_color=ORIGINCOLOR)
-        fig.add_layout(self.arrow_x)
-        
-        self.arrow_y = Arrow(end=VeeHead(size=ORIGINHEADSIZE, fill_color=ORIGINCOLOR, line_color=ORIGINCOLOR), 
-                             x_start=0, 
-                             y_start=0, 
-                             x_end=0, 
-                             y_end=ORIGINLENGTH, 
-                             line_width=ORIGINLINEWIDTH,
-                             line_color=ORIGINCOLOR)
-        fig.add_layout(self.arrow_y)
-        
-        fig.background_fill_color = PLOT_BACKGROUND_COLOR
-        fig.border_fill_color = BACKGROUND_COLOR
-        fig.outline_line_color = None 
-        
-        return fig
-    
-    def update_plot(self, data):
-        self.cds.data = dict(x=data['x'], y=data['y'], s=data['s'])
-        
-    def toggle_mic_visibility(self, visible):
-        if visible:
-            self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
-        else:
-            self.mic_cds.data = dict(x=[], y=[])
-
-    def toggle_origin_visibility(self, visible):
-        if self.arrow_x and self.arrow_y:
-            self.arrow_x.visible = visible
-            self.arrow_y.visible = visible

@@ -10,9 +10,8 @@ ac.config.global_caching = 'none'
 # Video configurations
 VIDEO_SCALE_FACTOR = 1
 UNDISTORT = False
-Z = 2 
-# TODO genauer Messen und nochmal scharf nachdenken, ob das wirklich so einfach ist
-DX, DZ = 143, 58
+Z = 2 #m
+DX, DZ = 143, 58 #m # TODO genauer Messen
 alphas = calculate_alphas(Z, dx=DX, dz=DZ)
 
 # Update rate configurations
@@ -25,7 +24,7 @@ model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_lear
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
-video_index = 2 #usb_camera_index() 
+video_index = 0
 mic_index = uma16_index()
 
 # Initialize video stream and model processor
