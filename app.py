@@ -2,13 +2,17 @@ import acoular as ac # type: ignore
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from processing import ModelProcessor
-from config import ConfigUMA, usb_camera_index, uma16_index
+from config import ConfigUMA, uma16_index, calculate_alphas
+import numpy as np
 
 ac.config.global_caching = 'none'
 
 # Video configurations
 VIDEO_SCALE_FACTOR = 1
 UNDISTORT = False
+Z = 2 #m
+DX, DZ = 143, 58 #m # TODO genauer Messen
+alphas = calculate_alphas(Z, dx=DX, dz=DZ)
 
 # Update rate configurations
 ESTIMATION_UPDATE_INTERVAL = 1000 #ms
@@ -20,7 +24,7 @@ model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_lear
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
-video_index = 0 #usb_camera_index() 
+video_index = 0
 mic_index = uma16_index()
 
 # Initialize video stream and model processor
@@ -42,7 +46,8 @@ dashboard = Dashboard(video_stream,
                       config_uma, 
                       ESTIMATION_UPDATE_INTERVAL, 
                       CAMERA_UPDATE_INTERVAL, 
-                      STREAM_UPDATE_INTERVAL)
+                      STREAM_UPDATE_INTERVAL,
+                      alphas)
 
 # Add the layout to the document
 doc = curdoc()

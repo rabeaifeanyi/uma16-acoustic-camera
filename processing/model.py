@@ -102,6 +102,9 @@ class ModelProcessor:
     
     # TODO mit Acoular umsetzen
     def _calc_csm_faster(self):
+        
+        # Adams Code einfügen!!!!!
+        
         freq_data = ac.PowerSpectra(
             time_data=self.dev, 
             block_size=128, 

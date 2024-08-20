@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import csv
 
@@ -25,19 +24,16 @@ def load_calibration_data(csv_file):
     
     return camera_matrix, dist_coeffs, r_vecs, t_vecs
 
-def usb_camera_index():
-    # TODO: Implement this method, this does not work, indices are chaning
-    """Get the index of the USB camera. 
-    This method is not universal and may need to be adjusted for different systems.
-    """
-    usb_camera_found = False
+def calculate_alphas(Z, ratio=(4, 3), dx=None, dy=None, dz=None):    
+    if dx and dz:
+        alpha_x = 2 * np.arctan(dx / (2 * dz))
+        alpha_y = 2 * np.arctan((ratio[1] * dx) / (2 * ratio[0] * dz))
+        
+    elif dy and dz:
+        alpha_x = 2 * np.arctan((ratio[0] * dy) / (2 * ratio[1] * dz))
+        alpha_y = 2 * np.arctan(dy / (2 * dz))
 
-    indices_to_check = [0, 2]
-    for index in indices_to_check:
-        cap = cv2.VideoCapture(index, cv2.CAP_ANY)
-        if cap.isOpened():
-            if index == 2: 
-                usb_camera_found = True
-            cap.release()
-            
-    return 2 
+    else:
+        raise ValueError("Either dx and dz or dy and dz must be provided.")
+        
+    return alpha_x, alpha_y
