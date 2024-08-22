@@ -1,4 +1,4 @@
-import cv2
+import cv2 # type: ignore
 import numpy as np
 from config import load_calibration_data
 

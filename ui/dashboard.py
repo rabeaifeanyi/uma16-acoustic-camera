@@ -5,7 +5,12 @@ from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-# TODO scaling of Video Stream and Plot
+##########################################################################################################################
+# TODOs 
+# - Wenn Z geändert wird, soll nur die Achsenskalierung, nicht aber die Plots selbst geändert werden
+# - Herausfinden, wie man Video-Stream größer anzeigen lassen kann, ohne, dass es rechenaufwändiger wird
+#   (Vermutlich Plot Bereich vergrößern, nicht aber das Bild selbst)
+##########################################################################################################################
 
 class Dashboard:
     """ Dashboard class for the acoustic camera application """
@@ -36,7 +41,7 @@ class Dashboard:
         self.stream_update_interval = stream_update_interval
         
         # UI setup
-        self.z_input = TextInput(value=str(self.Z), title="Scale Z")
+        self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")
         
         # Callbacks
         self.camera_view_callback = None
@@ -186,7 +191,6 @@ class Dashboard:
 
     def update_estimations(self):
         model_data = self.model_processor.results
-        print(model_data)
         self.acoustic_camera_plot.update_plot(model_data)
         
     def update_stream(self):

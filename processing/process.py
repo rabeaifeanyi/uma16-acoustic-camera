@@ -9,21 +9,27 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 
 ####################################################################################################################################
-# TODO Adam fragen: nicht so ganz verstanden wie BlockAverage funktioniert (ich benutze den csm_gen und mittel die CSMs selbst)
+# TODOs 
+# - Adam Fragen: Nicht so ganz verstanden wie BlockAverage funktioniert 
+#                self.avg_csm = ac.BlockAverage(source=self.csm_gen, numaverage=?)
+#                ich benutze CrossPowerSpectra -> in Queue (Buffer) -> mittel alle CSMs in Queue
 #                   -> Ist numaverage die Anzahl der zu mittelnden CSMs?
-#                   -> Wie kann ich overflow sehen?
-#                   -> Wenn numaverga=None, ist es dann das gleiche, w ie in meinem Code?
-#         self.avg_csm = ac.BlockAverage(source=self.csm_gen, numaverage=10)
-
+#                   -> Wenn numaverge=None, ist es dann das gleiche, wie in meinem Code?           
+# - MEMS Sensitivity
+# - Ist Processing so sinnvoll? -> Wie konnte Adam letztens den overflow sehen?
+# - CSM Setup
+# - Simples Beamforming hinzufügen
+# - Dafür Sample Splitter hinzufügen
 ####################################################################################################################################
 
 
 class ModelProcessor:
-    def __init__(self, uma_config, mic_index, model_config_path, ckpt_path, buffer_size=20, min_csm_num=20):
+    def __init__(self, uma_config, mic_index, model_config_path, ckpt_path, frequency, buffer_size=20, min_csm_num=20):
         # general setup
         self.mic_index = mic_index
         self.uma_config = uma_config
         self.nfreqs = 257 
+        self.frequency = frequency
         
         # generator setup
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16)
@@ -64,21 +70,18 @@ class ModelProcessor:
     # ___________________________________________________ MODEL FUNCTIONS ____________________________________________________   
     
     def _setup_model(self, model_config_path, ckpt_path):
-        # load model
         model_config = ConfigBase.from_toml(model_config_path)
         self.pipeline = model_config.datasets[1].pipeline.create_instance()
         self.ref_mic_index = model_config.datasets[0].pipeline.args['ref_mic_index']
         model_config.datasets[1].validation.cache = False
         self.model = tf.keras.models.load_model(ckpt_path)
+        self.f_ind = np.searchsorted(self.fft.fftfreq(self.nfreqs), self.frequency)
         
-    def _yield_csm(self, stop_event):
-        csm_counter = 0
+    def _yield_csm_to_queue(self, stop_event):
+        # adds full csm to queue -> maybe this is not necessary (or sensible)
         while not stop_event.is_set():
             data = next(self.csm_gen.result(num=self.nfreqs))
-            data = data.reshape(self.csm_shape)
-            data = data[60].reshape(self.dev.numchannels, self.dev.numchannels)
-            self.csm_queue.put(np.real(data))
-            csm_counter += 1
+            self.csm_queue.put(data)
             
     def _get_mean_csm(self):
         csm_list = []
@@ -92,20 +95,26 @@ class ModelProcessor:
         else:
             return None
         
-    def _preprocess_csm(self, csm):
+    def _preprocess_csm(self, data):
+        # TODO check if this is correct
+        csm = np.real(data).reshape(self.csm_shape)
+        csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels)
+        # standard sensitivity of 16 mV/Pa for all microphones
+        csm = csm / 0.0016**2 # TODO MEMS sensitivity
         csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
+        csm = csm / csm_norm
         eigmode = self.model.preprocessing(csm[np.newaxis]).numpy()
         return eigmode, csm_norm
     
     def _predict(self):
-        num_predictions = 0
         while not self.stop_event.is_set():
             csm = self._get_mean_csm()
+            
             if csm is None:
                 continue
-            num_predictions += 1
+            
             eigmode, csm_norm = self._preprocess_csm(csm)
-            strength_pred, loc_pred, noise_pred = self.model.predict(eigmode)
+            strength_pred, loc_pred, noise_pred = self.model.predict(eigmode, verbose=0) # verbose = Terminalanzeige
             strength_pred = strength_pred.squeeze()
             strength_pred *= np.real(csm_norm)
             
@@ -118,7 +127,7 @@ class ModelProcessor:
             }
     
     def start_model(self):
-        self.data_process = Process(target=self._yield_csm, args=(self.stop_event,))
+        self.data_process = Process(target=self._yield_csm_to_queue, args=(self.stop_event,))
         self.data_process.start()
 
         try:
@@ -175,7 +184,6 @@ class ModelProcessor:
             self._dummy_predict()
         finally:
             self.stop_model()
-            print("Model stopped.")
     
     # __________________________________________________ EXTRA FUNCTIONS __________________________________________________   
          
