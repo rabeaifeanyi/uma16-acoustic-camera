@@ -1,10 +1,15 @@
 # Source: https://www.geeksforgeeks.org/camera-calibration-with-python-opencv/
 
-import cv2 
+import cv2 # type: ignore
 import numpy as np 
 import os 
 import glob 
 import csv
+
+##############################################################################################
+# TODOs
+# - Nochmal neu kallibrieren
+##############################################################################################
 
 # Define the dimensions of checkerboard 
 CHECKERBOARD = (7, 10) 
