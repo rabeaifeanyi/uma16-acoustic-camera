@@ -9,17 +9,12 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 
 ####################################################################################################################################
-# TODOs 
-# - Adam Fragen: Nicht so ganz verstanden wie BlockAverage funktioniert 
-#                self.avg_csm = ac.BlockAverage(source=self.csm_gen, numaverage=?)
-#                ich benutze CrossPowerSpectra -> in Queue (Buffer) -> mittel alle CSMs in Queue
-#                   -> Ist numaverage die Anzahl der zu mittelnden CSMs?
-#                   -> Wenn numaverge=None, ist es dann das gleiche, wie in meinem Code?           
-# - MEMS Sensitivity
-# - Ist Processing so sinnvoll? -> Wie konnte Adam letztens den overflow sehen?
-# - CSM Setup
+# TODOs        
+# - MEMS Sensitivity 
+# - Ist Processing so sinnvoll? -> overflow ist Attribut von SoundDeviceSamplesGenerator, nochmal überdenken
+# - CSM Setup überdenken
 # - Simples Beamforming hinzufügen
-# - Dafür Sample Splitter hinzufügen
+# (- Dafür Sample Splitter hinzufügen -> erstmal nur entweder oder)
 ####################################################################################################################################
 
 

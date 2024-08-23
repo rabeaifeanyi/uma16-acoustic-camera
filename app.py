@@ -7,15 +7,15 @@ from config import ConfigUMA, uma16_index, calculate_alphas
 ac.config.global_caching = 'none'
 
 # Video configurations
-VIDEO_SCALE_FACTOR = 1
+VIDEO_SCALE_FACTOR = 1 # TODO überlegen, was hier schlau
 UNDISTORT = False
-DUMMY = False
+DUMMY = False # Später herausnehmen
 Z = 2 #m
-DX, DZ = 143, 58 #m # TODO genauer Messen
-alphas = calculate_alphas(Z, dx=DX, dz=DZ)
+DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
+alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
 
-# Update rate configurations
-ESTIMATION_UPDATE_INTERVAL = 1000 #ms
+# Update rate configurations in ms
+ESTIMATION_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
@@ -26,7 +26,7 @@ ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
 video_index = 0
 mic_index = uma16_index()
-FREQ = 5000
+FREQ = 5000 # TODO soll in der App eingestellt werden
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()

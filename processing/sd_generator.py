@@ -3,6 +3,7 @@ import sounddevice as sd # type: ignore
 import acoular as ac # type: ignore
 
 # converts to float64 before yielding
+# Wenn das in CrossPowerSpectra gemacht wird, brauchen wir die Klasse nicht mehr
 
 class SoundDeviceSamplesGeneratorWithPrecision(ac.SoundDeviceSamplesGenerator):
     def result(self, num):

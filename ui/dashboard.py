@@ -9,7 +9,11 @@ from .config_ui import *
 # TODOs 
 # - Wenn Z geändert wird, soll nur die Achsenskalierung, nicht aber die Plots selbst geändert werden
 # - Herausfinden, wie man Video-Stream größer anzeigen lassen kann, ohne, dass es rechenaufwändiger wird
-#   (Vermutlich Plot Bereich vergrößern, nicht aber das Bild selbst)
+# - Beamforming Switch hinzufügen
+# - Colorbar, bessere Darstellung, etc.
+# - Anzeige vom Overflow
+# - Frequenzen anpassbar machen
+# - Bessere Methode für die Achsenskalierung finden
 ##########################################################################################################################
 
 class Dashboard:
