@@ -26,7 +26,7 @@ ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
 
 video_index = 0
 mic_index = uma16_index()
-FREQ = 5000 # TODO soll in der App eingestellt werden
+STARTFREQ = 5000
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
@@ -39,7 +39,7 @@ model_processor = ModelProcessor(
     mic_index,
     model_config_path, 
     ckpt_path,
-    FREQ)
+    STARTFREQ)
 
 # Create the UI layout using the Dashboard class
 dashboard = Dashboard(

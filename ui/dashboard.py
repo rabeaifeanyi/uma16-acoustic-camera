@@ -45,7 +45,8 @@ class Dashboard:
         self.stream_update_interval = stream_update_interval
         
         # UI setup
-        self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")
+        self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")   
+        self.f_input = TextInput(value=str(self.model_processor.frequency), title="Frequency (Hz)")
         
         # Callbacks
         self.camera_view_callback = None
@@ -80,6 +81,7 @@ class Dashboard:
         sidebar = column(
             Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
             self.z_input, 
+            self.f_input,
             checkbox_group,
             plot_selector
         )
@@ -106,12 +108,20 @@ class Dashboard:
         
     def setup_callbacks(self):
         self.z_input.on_change("value", self.update_scale_z)
+        self.f_input.on_change("value", self.update_frequency)
         self.start_acoustic_camera_plot()
 
     def update_scale_z(self, attr, old, new):
         try:
             Z = float(new)
             self.acoustic_camera_plot.update_view_range(Z)
+        except ValueError:
+            pass
+        
+    def update_frequency(self, attr, old, new):
+        try:
+            f = float(new)
+            self.model_processor.update_frequency(f)
         except ValueError:
             pass
 

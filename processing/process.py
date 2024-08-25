@@ -19,12 +19,12 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 
 class ModelProcessor:
-    def __init__(self, uma_config, mic_index, model_config_path, ckpt_path, frequency, buffer_size=20, min_csm_num=20):
+    def __init__(self, uma_config, mic_index, model_config_path, ckpt_path, startfrequency, buffer_size=20, min_csm_num=20):
         # general setup
         self.mic_index = mic_index
         self.uma_config = uma_config
         self.nfreqs = 257 
-        self.frequency = frequency
+        self.frequency = startfrequency
         
         # generator setup
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16)
@@ -71,6 +71,11 @@ class ModelProcessor:
         model_config.datasets[1].validation.cache = False
         self.model = tf.keras.models.load_model(ckpt_path)
         self.f_ind = np.searchsorted(self.fft.fftfreq(self.nfreqs), self.frequency)
+        
+    def update_frequency(self, frequency):
+        self.frequency = frequency
+        self.f_ind = np.searchsorted(self.fft.fftfreq(self.nfreqs), self.frequency)
+        print(f"Frequency updated to {self.frequency} Hz.")
         
     def _yield_csm_to_queue(self, stop_event):
         # adds full csm to queue -> maybe this is not necessary (or sensible)
