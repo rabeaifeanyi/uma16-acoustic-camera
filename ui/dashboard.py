@@ -43,15 +43,20 @@ class Dashboard:
         self.estimation_update_interval = estimation_update_interval
         self.camera_update_interval = camera_update_interval
         self.stream_update_interval = stream_update_interval
+        self.overflow_update_interval = estimation_update_interval
         
         # UI setup
         self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")   
         self.f_input = TextInput(value=str(self.model_processor.frequency), title="Frequency (Hz)")
         
+        # Overflow setup
+        self.overflow_status = Div(text="Overflow Status: Unknown", width=300, height=30)
+        
         # Callbacks
         self.camera_view_callback = None
         self.estimation_callback = None
         self.stream_callback = None
+        self.overflow_callback = None
 
         self.setup_layout()
         self.setup_callbacks()
@@ -92,6 +97,7 @@ class Dashboard:
             header,
             self.acoustic_camera_plot.fig,
             self.stream_plot.fig,
+            self.overflow_status,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -109,6 +115,7 @@ class Dashboard:
     def setup_callbacks(self):
         self.z_input.on_change("value", self.update_scale_z)
         self.f_input.on_change("value", self.update_frequency)
+        self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
         self.start_acoustic_camera_plot()
 
     def update_scale_z(self, attr, old, new):
@@ -124,6 +131,11 @@ class Dashboard:
             self.model_processor.update_frequency(f)
         except ValueError:
             pass
+    
+    def update_overflow_status(self):
+        overflow = self.model_processor.dev.overflow
+        status_text = f"Overflow Status: {overflow}"
+        self.overflow_status.text = status_text
 
     def start_acoustic_camera_plot(self):
         self.stop_stream_plot()
