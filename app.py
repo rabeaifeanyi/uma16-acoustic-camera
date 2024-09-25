@@ -15,6 +15,7 @@ Z = 2 #m
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
 
+# Configuration for saving results
 CSV = False
 H5 = False
 

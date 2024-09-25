@@ -23,7 +23,40 @@ class AcousticCameraPlot:
        
         self.fig = self._create_plot()
 
-    def _create_plot(self):
+    def update_view_range(self, Z):
+        self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
+        self.fig.x_range.start = self.xmin
+        self.fig.x_range.end = self.xmax
+        self.fig.y_range.start = self.ymin
+        self.fig.y_range.end = self.ymax
+        
+    #TODO update view range video also
+
+    def calculate_view_range(self, Z):
+        xmax = Z * np.tan(self.alpha_x / 2)
+        xmin = -xmax
+        ymax = Z * np.tan(self.alpha_y / 2)
+        ymin = -ymax
+        return xmin, xmax, ymin, ymax
+
+    def update_plot(self, model_data):
+        self.cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+
+    def update_camera_image(self, img):
+        self.camera_cds.data['image_data'] = [img]
+
+    def toggle_mic_visibility(self, visible):
+        if visible:
+            self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
+        else:
+            self.mic_cds.data = dict(x=[], y=[])
+
+    def toggle_origin_visibility(self, visible):
+        if self.arrow_x and self.arrow_y:
+            self.arrow_x.visible = visible
+            self.arrow_y.visible = visible
+            
+    def _create_base_fig(self):
         fig = figure(width=self.frame_width, 
                      height=self.frame_height, 
                      x_range=(self.xmin, self.xmax), 
@@ -38,25 +71,6 @@ class AcousticCameraPlot:
                        dh=(self.ymax-self.ymin), 
                        source=self.camera_cds, 
                        alpha=VIDEOALPHA)
-        
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Strength of Source', 
-                    marker='circle', 
-                    size='s', 
-                    color=SHADOWCOLOR, 
-                    alpha=SHADOWALPHA, 
-                    line_color=None,
-                    source=self.cds)
-        
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Sound Source', 
-                    marker='circle', 
-                    size=DOTSIZE, 
-                    color=DOTCOLOR, 
-                    alpha=DOTALPHA, 
-                    source=self.cds)
         
         self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
         
@@ -93,39 +107,49 @@ class AcousticCameraPlot:
         fig.outline_line_color = None 
         
         return fig
-
-    def update_view_range(self, Z):
-        self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
-        self.fig.x_range.start = self.xmin
-        self.fig.x_range.end = self.xmax
-        self.fig.y_range.start = self.ymin
-        self.fig.y_range.end = self.ymax
         
-    #TODO update view range video also
 
-    def calculate_view_range(self, Z):
-        xmax = Z * np.tan(self.alpha_x / 2)
-        xmin = -xmax
-        ymax = Z * np.tan(self.alpha_y / 2)
-        ymin = -ymax
-        return xmin, xmax, ymin, ymax
+class AcousticCameraPlotModel(AcousticCameraPlot):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
+        super().__init__(frame_width, frame_height, mic_positions, alphas, Z)
+        self.fig = self._create_plot()
 
-    def update_plot(self, model_data):
-        self.cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+    def _create_plot(self):
+        fig = self._create_base_fig()
+        fig.scatter(x='x', 
+                    y='y', 
+                    legend_label='Strength of Source', 
+                    marker='circle', 
+                    size='s', 
+                    color=SHADOWCOLOR, 
+                    alpha=SHADOWALPHA, 
+                    line_color=None,
+                    source=self.cds)
+        
+        fig.scatter(x='x', 
+                    y='y', 
+                    legend_label='Sound Source', 
+                    marker='circle', 
+                    size=DOTSIZE, 
+                    color=DOTCOLOR, 
+                    alpha=DOTALPHA, 
+                    source=self.cds)
+        
+        return fig
+    
+    
+class AcousticCameraPlotBeamforming(AcousticCameraPlot):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
+        super().__init__(frame_width, frame_height, mic_positions, alphas, Z)
 
-    def update_camera_image(self, img):
-        self.camera_cds.data['image_data'] = [img]
+        self.fig = self._create_plot()
 
-    def toggle_mic_visibility(self, visible):
-        if visible:
-            self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
-        else:
-            self.mic_cds.data = dict(x=[], y=[])
+    def _create_plot(self):
+        fig = self._create_base_fig()
+        # TODO Hier contour plot hinzufügen
+        
+        return fig
 
-    def toggle_origin_visibility(self, visible):
-        if self.arrow_x and self.arrow_y:
-            self.arrow_x.visible = visible
-            self.arrow_y.visible = visible
 
 class StreamPlot():
     def __init__(self):

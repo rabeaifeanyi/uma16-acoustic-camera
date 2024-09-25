@@ -1,8 +1,8 @@
 import threading
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput, Toggle # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot, StreamPlot
+from .plotting import AcousticCameraPlotModel, StreamPlot
 from .config_ui import *
 
 ##########################################################################################################################
@@ -11,7 +11,6 @@ from .config_ui import *
 # - Herausfinden, wie man Video-Stream größer anzeigen lassen kann, ohne, dass es rechenaufwändiger wird
 # - Beamforming Switch hinzufügen
 # - Colorbar, bessere Darstellung, etc.
-# - Anzeige vom Overflow
 # - Frequenzen anpassbar machen
 # - Bessere Methode für die Achsenskalierung finden
 ##########################################################################################################################
@@ -33,7 +32,7 @@ class Dashboard:
         self.model_thread = None
         
         # Plot setup
-        self.acoustic_camera_plot = AcousticCameraPlot(
+        self.acoustic_camera_plot = AcousticCameraPlotModel(
                                         frame_width=video_stream.frame_width,
                                         frame_height=video_stream.frame_height,
                                         mic_positions=mic_array_config.mic_positions(),
@@ -83,12 +82,18 @@ class Dashboard:
         
         plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream"], active=0)
         
+        on_text = Div(text="Deep Learning", visible=True)
+        off_text = Div(text="Beamforming", visible=True)
+        
+        method_toggle = Toggle(label="Method", button_type="success", active=True)
+        
         sidebar = column(
             Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
             self.z_input, 
             self.f_input,
             checkbox_group,
-            plot_selector
+            plot_selector,
+            method_toggle,
         )
         
         self.stream_plot.fig.visible = False

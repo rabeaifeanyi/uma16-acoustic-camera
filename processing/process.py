@@ -132,6 +132,13 @@ class ModelProcessor:
             }
             
             self._append_results()
+            
+    def _beamforming(self): #TODO
+        st = ac.SteeringVector(grid=self.grid, mics=self.mics, ref=[0, 0, 0])
+        bb = ac.BeamformerBase(freq_data=self.csm_gen, steer=st)
+        while not self.stop_event.is_set():
+            pass
+            
     
     def start_model(self):
         self.data_process = Process(target=self._yield_csm_to_queue, args=(self.stop_event,))
@@ -237,4 +244,4 @@ class ModelProcessor:
             'y': signal.tolist()
         }
 
-    # __________________________________________________ BEAMFORMING ______________________________________________________   
+    
