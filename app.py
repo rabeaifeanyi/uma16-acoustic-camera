@@ -1,4 +1,5 @@
 import acoular as ac # type: ignore
+import datetime
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from processing import ModelProcessor
@@ -7,12 +8,16 @@ from config import ConfigUMA, uma16_index, calculate_alphas
 ac.config.global_caching = 'none'
 
 # Video configurations
-VIDEO_SCALE_FACTOR = 1 # TODO überlegen, was hier schlau
+VIDEO_SCALE_FACTOR = 1 # TODO überlegen, was hier schlau wäre
 UNDISTORT = False
 DUMMY = False # Später herausnehmen
 Z = 2 #m
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
+
+# Configuration for saving results
+CSV = False
+H5 = False
 
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 1000
@@ -23,10 +28,11 @@ STREAM_UPDATE_INTERVAL = 1000
 model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs500_2024-04-10_19-09"
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
+current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+results_filename = f"results_{current_time}"
 
 video_index = 0
 mic_index = uma16_index()
-FREQ = 5000 # TODO soll in der App eingestellt werden
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
@@ -38,10 +44,11 @@ model_processor = ModelProcessor(
     config_uma, 
     mic_index,
     model_config_path, 
+    results_filename,
     ckpt_path,
-    FREQ)
+    CSV,
+    H5)
 
-# Create the UI layout using the Dashboard class
 dashboard = Dashboard(
     video_stream, 
     model_processor, 
@@ -52,6 +59,5 @@ dashboard = Dashboard(
     alphas,
     dummy=DUMMY)
 
-# Add the layout to the document
 doc = curdoc()
 doc.add_root(dashboard.get_layout())

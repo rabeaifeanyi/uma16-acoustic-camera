@@ -1,8 +1,8 @@
 import threading
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput, Toggle # type: ignore
 from bokeh.plotting import curdoc
-from .plotting import AcousticCameraPlot, StreamPlot
+from .plotting import AcousticCameraPlotModel, StreamPlot
 from .config_ui import *
 
 ##########################################################################################################################
@@ -11,7 +11,6 @@ from .config_ui import *
 # - Herausfinden, wie man Video-Stream größer anzeigen lassen kann, ohne, dass es rechenaufwändiger wird
 # - Beamforming Switch hinzufügen
 # - Colorbar, bessere Darstellung, etc.
-# - Anzeige vom Overflow
 # - Frequenzen anpassbar machen
 # - Bessere Methode für die Achsenskalierung finden
 ##########################################################################################################################
@@ -33,7 +32,7 @@ class Dashboard:
         self.model_thread = None
         
         # Plot setup
-        self.acoustic_camera_plot = AcousticCameraPlot(
+        self.acoustic_camera_plot = AcousticCameraPlotModel(
                                         frame_width=video_stream.frame_width,
                                         frame_height=video_stream.frame_height,
                                         mic_positions=mic_array_config.mic_positions(),
@@ -43,14 +42,20 @@ class Dashboard:
         self.estimation_update_interval = estimation_update_interval
         self.camera_update_interval = camera_update_interval
         self.stream_update_interval = stream_update_interval
+        self.overflow_update_interval = estimation_update_interval
         
         # UI setup
-        self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")
+        self.z_input = TextInput(value=str(self.Z), title="Distance to Floor or Wall (m)")   
+        self.f_input = TextInput(value=str(self.model_processor.frequency), title="Frequency (Hz)")
+        
+        # Overflow setup
+        self.overflow_status = Div(text="Overflow Status: Unknown", width=300, height=30)
         
         # Callbacks
         self.camera_view_callback = None
         self.estimation_callback = None
         self.stream_callback = None
+        self.overflow_callback = None
 
         self.setup_layout()
         self.setup_callbacks()
@@ -77,11 +82,18 @@ class Dashboard:
         
         plot_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream"], active=0)
         
+        on_text = Div(text="Deep Learning", visible=True)
+        off_text = Div(text="Beamforming", visible=True)
+        
+        method_toggle = Toggle(label="Method", button_type="success", active=True)
+        
         sidebar = column(
             Div(text=f"{sidebar_style}<div id='sidebar'></div>", width=SIDEBAR_WIDTH),
             self.z_input, 
+            self.f_input,
             checkbox_group,
-            plot_selector
+            plot_selector,
+            method_toggle,
         )
         
         self.stream_plot.fig.visible = False
@@ -90,6 +102,7 @@ class Dashboard:
             header,
             self.acoustic_camera_plot.fig,
             self.stream_plot.fig,
+            self.overflow_status,
             sizing_mode="stretch_both",
             margin=(0, 320, 0, 0) 
         )
@@ -106,6 +119,8 @@ class Dashboard:
         
     def setup_callbacks(self):
         self.z_input.on_change("value", self.update_scale_z)
+        self.f_input.on_change("value", self.update_frequency)
+        self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
         self.start_acoustic_camera_plot()
 
     def update_scale_z(self, attr, old, new):
@@ -114,6 +129,18 @@ class Dashboard:
             self.acoustic_camera_plot.update_view_range(Z)
         except ValueError:
             pass
+        
+    def update_frequency(self, attr, old, new):
+        try:
+            f = float(new)
+            self.model_processor.update_frequency(f)
+        except ValueError:
+            pass
+    
+    def update_overflow_status(self):
+        overflow = self.model_processor.dev.overflow
+        status_text = f"Overflow Status: {overflow}"
+        self.overflow_status.text = status_text
 
     def start_acoustic_camera_plot(self):
         self.stop_stream_plot()
