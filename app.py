@@ -2,15 +2,13 @@ import acoular as ac # type: ignore
 import datetime
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
-from processing import ModelProcessor
+from data_processing import Processor
 from config import ConfigUMA, uma16_index, calculate_alphas
 
 ac.config.global_caching = 'none'
 
 # Video configurations
-VIDEO_SCALE_FACTOR = 1 # TODO überlegen, was hier schlau wäre
 UNDISTORT = False
-DUMMY = False # Später herausnehmen
 Z = 2 #m
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
@@ -21,6 +19,7 @@ H5 = False
 
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 1000
+BEAMFORMING_UPDATE_INTERVAL = 1000
 CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
@@ -36,11 +35,11 @@ mic_index = uma16_index()
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
-video_stream = VideoStream(video_index, VIDEO_SCALE_FACTOR, UNDISTORT)
+video_stream = VideoStream(video_index, undistort=UNDISTORT)
 frame_width = video_stream.frame_width
 frame_height = video_stream.frame_height
 
-model_processor = ModelProcessor(
+processor = Processor(
     config_uma, 
     mic_index,
     model_config_path, 
@@ -51,13 +50,14 @@ model_processor = ModelProcessor(
 
 dashboard = Dashboard(
     video_stream, 
-    model_processor, 
+    processor, 
     config_uma, 
     ESTIMATION_UPDATE_INTERVAL, 
+    BEAMFORMING_UPDATE_INTERVAL,
     CAMERA_UPDATE_INTERVAL, 
     STREAM_UPDATE_INTERVAL,
     alphas,
-    dummy=DUMMY)
+    Z)
 
 doc = curdoc()
 doc.add_root(dashboard.get_layout())

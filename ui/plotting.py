@@ -1,9 +1,10 @@
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, Arrow, VeeHead # type: ignore
+from bokeh.models import ColumnDataSource, Arrow, VeeHead, ColorBar, LinearColorMapper # type: ignore
+from bokeh.palettes import Viridis256 # type: ignore
+from bokeh.transform import linear_cmap # type: ignore
 from .config_ui import *
 import numpy as np
 
-# TODO auch camera mitscalieren, wenn Z geändert wird
 
 class AcousticCameraPlot:
     def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
@@ -12,7 +13,6 @@ class AcousticCameraPlot:
         self.mic_positions = mic_positions
         
         self.camera_cds = ColumnDataSource({'image_data': []})
-        self.cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
         
         self.arrow_x = None
@@ -20,7 +20,10 @@ class AcousticCameraPlot:
         
         self.alpha_x, self.alpha_y = alphas
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
-       
+        
+        self.model_cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
+        self.beamforming_cds = ColumnDataSource(data=dict(image=[], x=[], y=[], dw=[], dh=[]))
+        
         self.fig = self._create_plot()
 
     def update_view_range(self, Z):
@@ -29,8 +32,6 @@ class AcousticCameraPlot:
         self.fig.x_range.end = self.xmax
         self.fig.y_range.start = self.ymin
         self.fig.y_range.end = self.ymax
-        
-    #TODO update view range video also
 
     def calculate_view_range(self, Z):
         xmax = Z * np.tan(self.alpha_x / 2)
@@ -39,8 +40,28 @@ class AcousticCameraPlot:
         ymin = -ymax
         return xmin, xmax, ymin, ymax
 
-    def update_plot(self, model_data):
-        self.cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+    def update_plot_model(self, model_data):
+        #self.model_renderer.visible = True
+        #self.beamforming_renderer.visible = False
+        self.model_cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+    
+    def update_plot_beamforming(self, beamforming_data):
+
+        Lm = beamforming_data['s']  # Lm sollte ein 2D-Array sein
+
+        # Aktualisieren Sie den Color Mapper Bereich
+        self.color_mapper.low = np.min(Lm)
+        self.color_mapper.high = np.max(Lm)
+
+        # Aktualisieren der Datenquelle
+        self.beamforming_cds.data = dict(
+            image=[Lm],
+            x=[self.xmin],
+            y=[self.ymin],
+            dw=[self.xmax - self.xmin],
+            dh=[self.ymax - self.ymin]
+        )
+
 
     def update_camera_image(self, img):
         self.camera_cds.data['image_data'] = [img]
@@ -75,8 +96,7 @@ class AcousticCameraPlot:
         self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
         
         fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Microphones', 
+                    y='y',
                     marker='circle', 
                     size=MICSIZE, 
                     color=MICCOLOR, 
@@ -107,49 +127,57 @@ class AcousticCameraPlot:
         fig.outline_line_color = None 
         
         return fig
-        
-
-class AcousticCameraPlotModel(AcousticCameraPlot):
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
-        super().__init__(frame_width, frame_height, mic_positions, alphas, Z)
-        self.fig = self._create_plot()
-
+    
     def _create_plot(self):
         fig = self._create_base_fig()
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Strength of Source', 
-                    marker='circle', 
-                    size='s', 
-                    color=SHADOWCOLOR, 
-                    alpha=SHADOWALPHA, 
-                    line_color=None,
-                    source=self.cds)
         
-        fig.scatter(x='x', 
-                    y='y', 
-                    legend_label='Sound Source', 
-                    marker='circle', 
-                    size=DOTSIZE, 
-                    color=DOTCOLOR, 
-                    alpha=DOTALPHA, 
-                    source=self.cds)
+        bar_low = 0
+        bar_high = 100
+
+        color_mapper = linear_cmap('s', Viridis256, bar_low, bar_high)
+
+        # Renderer für Modell-Daten
+        self.model_renderer = fig.scatter(
+            x='x', 
+            y='y',
+            marker='circle', 
+            size=DOTSIZE, 
+            color=color_mapper,
+            alpha=DOTALPHA, 
+            source=self.model_cds
+        )
+        
+        self.color_mapper = LinearColorMapper(palette=Viridis256, low=0, high=100)
+
+
+        # Renderer für Beamforming-Daten
+        self.beamforming_renderer = fig.image(
+            image='image',
+            x='x',
+            y='y',
+            dw='dw',
+            dh='dh',
+            source=self.beamforming_cds,
+            color_mapper=self.color_mapper,
+            level='image',
+            alpha=DOTALPHA
+        )
+
+        # Initiale Sichtbarkeit einstellen
+        self.beamforming_renderer.visible = False  # Beamforming-Daten ausblenden
+
+        color_bar = ColorBar(
+            color_mapper=color_mapper['transform'], 
+            label_standoff=12, 
+            width=8, 
+            location=(0, 0),
+            background_fill_color=PLOT_BACKGROUND_COLOR
+        )
+
+        fig.add_layout(color_bar, 'right')  
         
         return fig
-    
-    
-class AcousticCameraPlotBeamforming(AcousticCameraPlot):
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
-        super().__init__(frame_width, frame_height, mic_positions, alphas, Z)
-
-        self.fig = self._create_plot()
-
-    def _create_plot(self):
-        fig = self._create_base_fig()
-        # TODO Hier contour plot hinzufügen
-        
-        return fig
-
+      
 
 class StreamPlot():
     def __init__(self):

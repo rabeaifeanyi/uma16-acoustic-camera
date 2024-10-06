@@ -31,6 +31,8 @@ class ConfigUMA(DatasetSyntheticConfig):
                     'window' : 'Hanning',
                     'precision' : 'complex64'},
                 desc='FFT parameters')
+    max_nsources = 3
+    min_nsources = 1
 
     def create_mics(self):
         """Create the microphone array.
