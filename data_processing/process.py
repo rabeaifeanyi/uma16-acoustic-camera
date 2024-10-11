@@ -15,8 +15,6 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 # 1: Sample Splitter not correctly implemented #P1
 # 2: MaskedSpectraInOut not yet implemented #P2
 # 3: Beamforming not implemented #P3
-# 4: New model and Z-coordinate not yet tested #P4
-
 
 class Processor:
     def __init__(self, uma_config, mic_index, model_config_path, results_filename, ckpt_path, save_csv, save_h5, buffer_size=250):
@@ -40,7 +38,7 @@ class Processor:
         self.results = {
             'x': [0],
             'y': [0],
-            'z': [0], #P4
+            'z': [0],
             's': [0]
         }
 
@@ -203,7 +201,7 @@ class Processor:
                     self.results = {
                         'x': loc_pred[0].tolist(),
                         'y': loc_pred[1].tolist(),
-                        'z': loc_pred[2].tolist(), #P4
+                        'z': loc_pred[2].tolist(),
                         's': strength_pred.tolist()
                     }
                 self._save_results()

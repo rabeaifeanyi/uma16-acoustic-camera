@@ -5,7 +5,7 @@ from ui import Dashboard, VideoStream
 from data_processing import Processor
 from config import ConfigUMA, uma16_index, calculate_alphas
 
-ac.config.global_caching = 'none'
+ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = False
@@ -24,9 +24,9 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs500_2024-04-10_19-09"
+model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03"
 model_config_path = model_dir + "/config.toml"
-ckpt_path = model_dir + '/ckpt/best_ckpt/0441-0.83.keras'
+ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 results_filename = f"results_{current_time}"
 
