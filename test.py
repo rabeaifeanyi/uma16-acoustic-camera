@@ -2,6 +2,7 @@ from data_processing import Processor
 from config import ConfigUMA, uma16_index 
 import time
 import acoular as ac #type:ignore
+import threading
 
 config_uma = ConfigUMA()
 mic_index = uma16_index()
@@ -9,9 +10,8 @@ model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_lear
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
 results_filename = "test_results"
-
-ac.config.global_caching = 'none'
-
+ 
+ac.config.global_caching = 'none' # type: ignore
 
 processor = Processor(
     config_uma,
@@ -27,10 +27,39 @@ processor = Processor(
 # time.sleep(5)
 # #processor.stop_beamforming()
 
-processor.start_model()
-time.sleep(5)
-processor.stop_model()
+# processor.start_model()
+# time.sleep(5)
+# processor.stop_model()
 
 # processor.start_beamforming()
 # time.sleep(5)
 # processor.stop_beamforming()
+
+outside_stopevent = threading.Event()
+
+def yield_results():
+    processor.model_ready_event.wait()
+    while not outside_stopevent.is_set():
+        result = processor.get_results()
+        print(result)
+        time.sleep(0.1)
+        
+def run_model():
+    processor.start_model()
+    outside_stopevent.wait()
+    processor.stop_model()
+    
+processing_thread = threading.Thread(target=run_model)
+result_thread = threading.Thread(target=yield_results)
+
+processing_thread.start()
+result_thread.start()
+
+try:
+    time.sleep(10)
+finally:
+    outside_stopevent.set()
+    processing_thread.join()    
+    result_thread.join()
+    
+# Das funktioniert nicht, es scheint nicht parallel ausgeführt zu werden

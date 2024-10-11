@@ -27,6 +27,8 @@ STREAM_UPDATE_INTERVAL = 1000
 model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03"
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
+
+# Filename for results
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 results_filename = f"results_{current_time}"
 
