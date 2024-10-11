@@ -11,6 +11,12 @@ from modelsdfg.transformer.config import ConfigBase  # type: ignore
 from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 
+# Problems
+# 1: Sample Splitter not correctly implemented #P1
+# 2: MaskedSpectraInOut not yet implemented #P2
+# 3: Beamforming not implemented #P3
+
+
 class Processor:
     def __init__(self, uma_config, mic_index, model_config_path, results_filename, ckpt_path, save_csv, save_h5, buffer_size=250):
         
@@ -54,12 +60,14 @@ class Processor:
         
         self._model_threads()
         # Starting the thread
+        #print("Starting Data Saving thread.") #P1
+        #self.save_time_samples_thread.start()
+        
         print("Starting CSM thread.")
         self.csm_thread.start()
         
         print("Starting prediction thread.")
         self.compute_prediction_thread.start()
-
 
     def stop_model(self):
         print("Stopping model processing.")
@@ -68,8 +76,11 @@ class Processor:
         self.csm_thread.join()
         print("CSM thread stopped.")
         
-        self.compute_prediction_thread.join()
+        self.compute_prediction_thread.join() 
         print("Prediction thread stopped.")
+        
+        #self._save_time_samples_thread.join() #P1
+        #print("Prediction thread stopped.")
 
         while not self.csm_queue.empty():
             try:
@@ -85,26 +96,30 @@ class Processor:
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16)
         
         # Sample Splitter for parallel processing
-        #self.sample_splitter = ac.TimeSamplesSplitter(source=self.dev)
+        sample_splitter = ac.SampleSplitter(source=self.dev)
         
         # Generator for logging the time data
-        # TODO: make this work
-        #self.WriteH5 = ac.WriteH5(source=self.sample_splitter, name=results_filename)
-        #self.dummy_saving_generator = ac.TimeInOut(source=self.sample_splitter)
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
 
         # Real Fast Fourier Transform
-        #self.fft = ac.RFFT(source=self.sample_splitter, block_size=256)
-        self.fft = ac.RFFT(source=self.dev, block_size=256)
+        #self.fft = ac.RFFT(source=sample_splitter, block_size=256) #P1
+        self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
         
         # Cross Power Spectra -> CSM
-        self.csm_gen = ac.CrossPowerSpectra(source=self.fft)#, norm='psd')
+        self.csm_gen = ac.CrossPowerSpectra(source=self.fft)
+        
+        #sample_splitter.register_object(self.fft, self.writeH5) #P1
         
         # TODO: When MaskedSpectraInOut is implemented, use it here to filter freqencies
-        # self.masked = ac.MaskedSpectraInOut(source=self.csm_gen, ...)
-         
+        # self.masked = ac.MaskedSpectraInOut(source=self.csm_gen, ...) #P2
+
         # Index of the target frequency -> not necessary if MaskedSpectraInOut is used
-        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
+        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency) #P2
         
+    # TODO: make this work   
+    # def _save_time_samples(self): #P1
+    #     while not self.model_stop_event.is_set():
+    #         self.writeH5.result(num=10) 
         
     def _setup_model(self):
         
@@ -135,7 +150,7 @@ class Processor:
         # Threads und Prozesse
         self.csm_thread = Thread(target=self._csm_generator)
         self.compute_prediction_thread = Thread(target=self._predictor)
-        
+        #self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
         
     def _csm_generator(self):
         while not self.model_stop_event.is_set():
@@ -153,7 +168,6 @@ class Processor:
                 except Exception as e:
                     print(f"Error in csm_generator: {e}")
                     break  # Unexpected error, break the loop
-
 
     def _predictor(self):
         while not self.model_stop_event.is_set():
@@ -352,7 +366,7 @@ class Processor:
         current_results = self.get_results()
         
         with self.frequency_lock:
-            current_frequency = self.frequency.copy()
+            current_frequency = self.frequency
             
         if self.save_csv:
             csv_filename = self.filename_base + '.csv'
