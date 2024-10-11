@@ -6,11 +6,6 @@ from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
-##########################################################################################################################
-# TODOs 
-# - Erkennung von ArUco Markern 
-
-##########################################################################################################################
 
 class Dashboard:
     def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, alphas, Z):
