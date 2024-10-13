@@ -7,25 +7,41 @@ import numpy as np
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, Z=2.0):
-        self.frame_width = frame_width
-        self.frame_height = frame_height
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1.5, Z=2.0):
+        
+        # Set the frame width and height
+        self.frame_width = int(frame_width * 1.1 * scale_factor)
+        self.frame_height = int(frame_height * scale_factor)
+        
+        # Array with microphone positions
         self.mic_positions = mic_positions
         
+        # Threshold for the model data
         self.threshold = threshold
         
+        # Data source for the camera image
         self.camera_cds = ColumnDataSource({'image_data': []})
+        
+        # Data source for the microphone positions
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
         
+        # Arrow for the origin
         self.arrow_x = None
         self.arrow_y = None
         
+        # Camera view angles
         self.alpha_x, self.alpha_y = alphas
+        
+        # Calculate the view range
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         
+        # Data sources for the model data
         self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[]))
+        
+        # Data source for the beamforming data
         self.beamforming_cds = ColumnDataSource(data=dict(image=[], x=[], y=[], dw=[], dh=[]))
         
+        # Create the plot
         self.fig = self._create_plot()
 
     def update_view_range(self, Z):
@@ -58,14 +74,11 @@ class AcousticCameraPlot:
         self.model_cds.data = dict(x=x, y=y, z=z, s=s)
     
     def update_plot_beamforming(self, beamforming_data):
+        Lm = beamforming_data['s']
 
-        Lm = beamforming_data['s']  # Lm sollte ein 2D-Array sein
-
-        # Aktualisieren Sie den Color Mapper Bereich
         self.color_mapper.low = np.min(Lm)
         self.color_mapper.high = np.max(Lm)
 
-        # Aktualisieren der Datenquelle
         self.beamforming_cds.data = dict(
             image=[Lm],
             x=[self.xmin],
@@ -160,7 +173,6 @@ class AcousticCameraPlot:
         
         self.color_mapper = LinearColorMapper(palette=Viridis256, low=0, high=100)
 
-
         # Renderer für Beamforming-Daten
         self.beamforming_renderer = fig.image(
             image='image',
@@ -174,9 +186,8 @@ class AcousticCameraPlot:
             alpha=DOTALPHA
         )
 
-        # Initiale Sichtbarkeit einstellen
-        self.beamforming_renderer.visible = False  # Beamforming-Daten ausblenden
-
+        self.beamforming_renderer.visible = False 
+        
         color_bar = ColorBar(
             color_mapper=color_mapper['transform'], 
             label_standoff=12, 
