@@ -58,8 +58,7 @@ dashboard = Dashboard(
     BEAMFORMING_UPDATE_INTERVAL,
     CAMERA_UPDATE_INTERVAL, 
     STREAM_UPDATE_INTERVAL,
-    alphas,
-    Z)
+    alphas)
 
 doc = curdoc()
 doc.add_root(dashboard.get_layout())

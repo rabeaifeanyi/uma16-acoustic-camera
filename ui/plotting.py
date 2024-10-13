@@ -7,10 +7,12 @@ import numpy as np
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, Z=2.0):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, Z=2.0):
         self.frame_width = frame_width
         self.frame_height = frame_height
         self.mic_positions = mic_positions
+        
+        self.threshold = threshold
         
         self.camera_cds = ColumnDataSource({'image_data': []})
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
@@ -21,7 +23,7 @@ class AcousticCameraPlot:
         self.alpha_x, self.alpha_y = alphas
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         
-        self.model_cds = ColumnDataSource(data=dict(x=[], y=[], s=[]))
+        self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[]))
         self.beamforming_cds = ColumnDataSource(data=dict(image=[], x=[], y=[], dw=[], dh=[]))
         
         self.fig = self._create_plot()
@@ -43,7 +45,17 @@ class AcousticCameraPlot:
     def update_plot_model(self, model_data):
         #self.model_renderer.visible = True
         #self.beamforming_renderer.visible = False
-        self.model_cds.data = dict(x=model_data['x'], y=model_data['y'], s=model_data['s'])
+        
+        x = np.array(model_data['x'])
+        y = np.array(model_data['y'])
+        z = np.array(model_data['z'])
+        s = np.array(model_data['s'])
+        
+        mask = s >= self.threshold
+        
+        x, y, z, s = x[mask], y[mask], z[mask], s[mask]
+
+        self.model_cds.data = dict(x=x, y=y, z=z, s=s)
     
     def update_plot_beamforming(self, beamforming_data):
 
@@ -61,7 +73,6 @@ class AcousticCameraPlot:
             dw=[self.xmax - self.xmin],
             dh=[self.ymax - self.ymin]
         )
-
 
     def update_camera_image(self, img):
         self.camera_cds.data['image_data'] = [img]
