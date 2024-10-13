@@ -7,11 +7,14 @@ import numpy as np
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1.5, Z=2.0):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1.5, Z=3.0, min_distance=1):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
         self.frame_height = int(frame_height * scale_factor)
+        
+        self.Z = Z
+        self.min_distance = min_distance
         
         # Array with microphone positions
         self.mic_positions = mic_positions
@@ -35,8 +38,11 @@ class AcousticCameraPlot:
         # Calculate the view range
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         
+        # Point sizes for the model data
+        self.min_point_size, self.max_point_size = 5, 20
+        
         # Data sources for the model data
-        self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[]))
+        self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[], sizes=[]))
         
         # Data source for the beamforming data
         self.beamforming_cds = ColumnDataSource(data=dict(image=[], x=[], y=[], dw=[], dh=[]))
@@ -59,19 +65,31 @@ class AcousticCameraPlot:
         return xmin, xmax, ymin, ymax
 
     def update_plot_model(self, model_data):
-        #self.model_renderer.visible = True
-        #self.beamforming_renderer.visible = False
+        self.model_renderer.visible = True
+        self.beamforming_renderer.visible = False
         
         x = np.array(model_data['x'])
         y = np.array(model_data['y'])
         z = np.array(model_data['z'])
         s = np.array(model_data['s'])
         
+        if len(z) > 0:
+            z_clipped = np.clip(z, self.min_distance, self.Z)
+            
+            z_norm = (z_clipped - self.min_distance) / (self.Z - self.min_distance)
+            z_inverted = 1 - z_norm 
+            
+            sizes = self.min_point_size + z_inverted * (self.max_point_size - self.min_point_size)
+        else:
+            sizes = []
+        
         mask = s >= self.threshold
         
         x, y, z, s = x[mask], y[mask], z[mask], s[mask]
+        
+        print(z)
 
-        self.model_cds.data = dict(x=x, y=y, z=z, s=s)
+        self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
     
     def update_plot_beamforming(self, beamforming_data):
         Lm = beamforming_data['s']
@@ -165,7 +183,7 @@ class AcousticCameraPlot:
             x='x', 
             y='y',
             marker='circle', 
-            size=DOTSIZE, 
+            size='sizes', 
             color=color_mapper,
             alpha=DOTALPHA, 
             source=self.model_cds

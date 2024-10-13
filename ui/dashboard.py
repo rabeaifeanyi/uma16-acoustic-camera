@@ -1,13 +1,13 @@
 import threading
 from bokeh.layouts import column, layout, row
-from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput # type: ignore
+from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput, Button # type: ignore
 from bokeh.plotting import curdoc
 from .plotting import AcousticCameraPlot, StreamPlot
 from .config_ui import *
 
 
 class Dashboard:
-    def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, alphas):
+    def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, alphas, z, min_distance):
 
         # Angles of the camera view
         self.alphas = alphas
@@ -31,7 +31,9 @@ class Dashboard:
                                         frame_width=video_stream.frame_width,
                                         frame_height=video_stream.frame_height,
                                         mic_positions=mic_array_config.mic_positions(),
-                                        alphas=self.alphas
+                                        alphas=self.alphas,
+                                        Z=z,
+                                        min_distance=min_distance
                                     )    
         
         # Setting up the stream plot
@@ -100,11 +102,18 @@ class Dashboard:
         # Mode Selector (Acoustic Camera vs. Stream)
         mode_selector = RadioButtonGroup(labels=["Acoustic Camera", "Stream"], active=0)
         
+        # Measurement button
+        # Ideas: Color change when measurement is active, change label to "Stop Measurement"
+        # Problem: When stop is pressed to quickly and model has not properly started, error occurs
+        # Possible solution: Add a check if model_thread is None before stopping
+        self.measurement_button = Button(label="Start Messung")
+        
         # Grouping relevant UI elements into a single container (sidebar_section)
         self.sidebar_section = column(
             self.f_input,
             self.checkbox_group,
             self.method_selector,
+            self.measurement_button,
             self.overflow_status
         )
         
@@ -146,8 +155,11 @@ class Dashboard:
         # Callbacks for the frequency input field
         self.f_input.on_change("value", self.update_frequency)
         
+        # Callbacks for the measurement button
+        self.measurement_button.on_click(self.toggle_measurement)
+        
         # Callback for the mode selector
-        self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
+        #self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
         
         # Start the acoustic camera plot
         self.start_acoustic_camera_plot()
@@ -155,10 +167,12 @@ class Dashboard:
     def toggle_method(self, attr, old, new):
         """Callback for the method selector"""
         # Stop the current method
-        if new == 0:
-            self.stop_beamforming()
-        elif new == 1:
-            self.stop_model()
+        
+        self.stop_measurement()
+        #if new == 0:
+            #self.stop_beamforming()
+        #elif new == 1:
+            #self.stop_model()
         
         # Remove the periodic callbacks
         if self.estimation_callback is not None:
@@ -172,15 +186,43 @@ class Dashboard:
         if new == 0:
             print("Wechsel zu Deep Learning")
             self.method = 0
-            self.start_model()
+            #self.start_model()
             self.estimation_callback = curdoc().add_periodic_callback(
                 self.update_estimations, self.estimation_update_interval)
         elif new == 1:
             print("Wechsel zu Beamforming")
             self.method = 1
-            self.start_beamforming()
+            #self.start_beamforming()
             self.beamforming_callback = curdoc().add_periodic_callback(
                 self.update_beamforming, self.beamforming_update_interval)
+            
+    def stop_measurement(self):
+        """Stop the current measurement"""
+        if self.model_thread is not None:
+            self.stop_model()
+            self.measurement_button.label = "Start Messung"
+        if self.beamforming_thread is not None:
+            self.stop_beamforming()
+            self.measurement_button.label = "Start Messung"
+
+                
+    def toggle_measurement(self):
+        """Callback für den Messungs-Button, startet oder stoppt die Messung"""
+        if self.method == 0:
+            if self.model_thread is None:
+                self.start_model()
+                self.measurement_button.label = "Messung beenden"
+            else:
+                self.stop_model()
+                self.measurement_button.label = "Start Messung"
+        elif self.method == 1:
+            if self.beamforming_thread is None:
+                self.start_beamforming()
+                self.measurement_button.label = "Messung beenden"
+            else:
+                self.stop_beamforming()
+                self.measurement_button.label = "Start Messung"
+
         
     def update_frequency(self, attr, old, new):
         """Callback for the frequency input field
@@ -206,22 +248,22 @@ class Dashboard:
         # Deep Learning
         if self.method == 0:
             self.stop_beamforming()
-            self.start_model()
+            #self.start_model()
             self.acoustic_camera_plot.beamforming_renderer.visible = False
             self.acoustic_camera_plot.model_renderer.visible = True
         
-            if self.estimation_callback is None:
-                self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
+            #if self.estimation_callback is None:
+                #self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
         
         # Beamforming
         elif self.method == 1:
             self.stop_model()
-            self.start_beamforming()    
+            #self.start_beamforming()    
             self.acoustic_camera_plot.model_renderer.visible = False
             self.acoustic_camera_plot.beamforming_renderer.visible = True
         
-            if self.beamforming_callback is None:
-                self.beamforming_callback = curdoc().add_periodic_callback(self.update_beamforming, self.beamforming_update_interval)
+            #if self.beamforming_callback is None:
+                #self.beamforming_callback = curdoc().add_periodic_callback(self.update_beamforming, self.beamforming_update_interval)
 
         if self.camera_view_callback is None:
             self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
@@ -240,11 +282,12 @@ class Dashboard:
             curdoc().remove_periodic_callback(self.beamforming_callback)
             self.beamforming_callback = None
             
+        self.stop_measurement()
         self.video_stream.stop()
-        if self.method == 0:
-            self.stop_model()
-        elif self.method == 1:
-            self.stop_beamforming()
+        # if self.method == 0:
+        #     self.stop_model()
+        # elif self.method == 1:
+        #     self.stop_beamforming()
             
     # Stream Plot
     def start_stream_plot(self):
@@ -262,6 +305,9 @@ class Dashboard:
 
     # Sidebar methods
     def toggle_plot_visibility(self, attr, old, new):
+        self.stop_measurement()
+        self.measurement_button.label = "Start Messung"
+        
         if new == 0:  # Acoustic Camera selected
             self.acoustic_camera_plot.fig.visible = True
             self.stream_plot.fig.visible = False
@@ -299,12 +345,27 @@ class Dashboard:
         if self.model_thread is None:
             self.model_thread = threading.Thread(target=self.processor.start_model, daemon=True)
             self.model_thread.start()
+        
+        if self.estimation_callback is None:
+            self.estimation_callback = curdoc().add_periodic_callback(self.update_estimations, self.estimation_update_interval)
+            
+        if self.overflow_callback is None:
+            self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
+
                         
     def stop_model(self):
         if self.model_thread is not None:
             self.processor.stop_model()
             self.model_thread.join()
             self.model_thread = None
+            
+        if self.estimation_callback is not None:
+            curdoc().remove_periodic_callback(self.estimation_callback)
+            self.estimation_callback = None
+            
+        if self.overflow_callback is not None:
+            curdoc().remove_periodic_callback(self.overflow_callback)
+            self.overflow_callback = None
             
     def update_estimations(self):
         model_data = self.processor.results
@@ -315,12 +376,26 @@ class Dashboard:
         if self.beamforming_thread is None:
             self.beamforming_thread = threading.Thread(target=self.processor.start_beamforming, daemon=True)
             self.beamforming_thread.start()
+        
+        if self.beamforming_callback is None:
+            self.beamforming_callback = curdoc().add_periodic_callback(self.update_beamforming, self.beamforming_update_interval)
+            
+        if self.overflow_callback is None:
+            self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
             
     def stop_beamforming(self):
         if self.beamforming_thread is not None:
             self.beamforming_thread.join()
             self.beamforming_thread = None
-        
+            
+        if self.beamforming_callback is not None:
+            curdoc().remove_periodic_callback(self.beamforming_callback)
+            self.beamforming_callback = None
+            
+        if self.overflow_callback is not None:
+            curdoc().remove_periodic_callback(self.overflow_callback)
+            self.overflow_callback = None
+
     def update_beamforming(self):
         beamforming_data = self.processor.results
         self.acoustic_camera_plot.update_plot_beamforming(beamforming_data)

@@ -18,9 +18,9 @@ class VideoStream:
             self.camera_matrix, self.dist_coeffs, _, _ = load_calibration_data('config/camera_calibration.csv')
             self.new_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, 
                                                                       self.dist_coeffs, 
-                                                                      (self.frame_width, self.frame_height), # original image size
+                                                                      (self.frame_width, self.frame_height),
                                                                       1, # alpha
-                                                                      (self.frame_width, self.frame_height)) # new image size
+                                                                      (self.frame_width, self.frame_height))
         except FileNotFoundError:
             self.camera_matrix = None
             self.dist_coeffs = None
