@@ -1,21 +1,15 @@
 import numpy as np
 import tensorflow as tf  # type: ignore
 import acoular as ac  # type: ignore
-import datetime
-import h5py  # type: ignore
-import csv
 from threading import Event, Lock, Thread
 from queue import Queue
 import queue  # Wichtig für Ausnahmen
 from modelsdfg.transformer.config import ConfigBase  # type: ignore
-from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
+from data_processing.sd_generator import SoundDeviceSamplesGeneratorWithPrecision
+import time
+from config import ConfigUMA, uma16_index 
 
-# Problems
-# 1: Sample Splitter not correctly implemented #P1
-# 2: MaskedSpectraInOut not yet implemented #P2
-# 3: Beamforming not implemented #P3
-# 4: Saving of results not tested #P4
-# 0: All sorts of small problems #P0
+
 
 class Processor:
     def __init__(self, uma_config, mic_index, model_config_path, results_filename, ckpt_path, save_csv, save_h5, 
@@ -64,9 +58,7 @@ class Processor:
         # Boolean flags for saving the results
         self.save_csv = save_csv
         self.save_h5 = save_h5   
-        
-        # For testing purposes only: data of the first channel can be plotted
-        self._generators_for_data() 
+    
         
     def start_model(self):
         """ Start the model processing
@@ -79,8 +71,8 @@ class Processor:
         self._model_threads()
         
         # Start thread for data logging
-        #print("Starting Data Saving thread.") #P1
-        #self.save_time_samples_thread.start()
+        print("Starting Data Saving thread.") #P1
+        self.save_time_samples_thread.start()
         
         # Start thread for CSM generation
         print("Starting CSM thread.")
@@ -105,8 +97,8 @@ class Processor:
         self.compute_prediction_thread.join() 
         print("Prediction thread stopped.")
         
-        #self._save_time_samples_thread.join() #P1
-        #print("Data Saving thread stopped.")
+        self.save_time_samples_thread.join() #P1
+        print("Data Saving thread stopped.")
 
         # Clear the CSM queue
         while not self.csm_queue.empty():
@@ -132,26 +124,26 @@ class Processor:
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16) #P0
         
         # Sample Splitter for parallel processing
-        #sample_splitter = ac.SampleSplitter(source=self.dev) #P1
+        sample_splitter = ac.SampleSplitter(source=self.dev) #P1
         
         # Generator for logging the time data
-        #self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
 
         # Real Fast Fourier Transform
-        #self.fft = ac.RFFT(source=sample_splitter, block_size=256) #P1
-        self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
+        self.fft = ac.RFFT(source=sample_splitter, block_size=256) #P1
+        #self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
         
         # Cross Power Spectra -> CSM
         self.csm_gen = ac.CrossPowerSpectra(source=self.fft)
         
         # Register the objects
-        #sample_splitter.register_object(self.fft, self.writeH5) #P1
+        sample_splitter.register_object(self.fft, self.writeH5) #P1
         
         # TODO: When MaskedSpectraInOut is implemented, use it here to filter freqencies
         # Problem: This means, we have to restart the model setup, when the frequency is updated
         #          Maybe this is a good thing?
         # Filter the frequencies
-        # self.masked = ac.MaskedSpectraInOut(source=self.csm_gen, ...) #P2
+        # self.masked = ac.MaskedSpectraOut(source=self.csm_gen, ...) #P2
 
         # Index of the target frequency -> not necessary if MaskedSpectraInOut is used
         self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency) #P2
@@ -160,8 +152,8 @@ class Processor:
     def _save_time_samples(self): #P1
         """ Save the time samples to a H5 file
         """
-    #     while not self.model_stop_event.is_set():
-    #         self.writeH5.result(num=10) 
+        while not self.model_stop_event.is_set():
+            self.writeH5.result(num=10) 
         pass
         
     def _setup_model(self):
@@ -196,7 +188,7 @@ class Processor:
         # Threads
         self.csm_thread = Thread(target=self._csm_generator)
         self.compute_prediction_thread = Thread(target=self._predictor)
-        #self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
+        self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
         
     def _csm_generator(self):
         """ CSM generator thread for the model
@@ -303,170 +295,26 @@ class Processor:
 
         return eigmode, csm_norm
 
-    def start_beamforming(self):
-        """ Start the beamforming process
-        """
-        print("\nStarting beamforming.")
-        
-        # Setup the generators for the beamforming process
-        self._generators_for_beamforming()
-        self._setup_beamforming()
-        self._beamforming_threads()
-        
-        # Start the beamforming thread
-        self.beamforming_thread.start()   
-        print("Beamforming thread started.")
-    
-    def stop_beamforming(self):
-        """ Stop the beamforming process
-        """
-        print("Stopping beamforming.")
-        
-        # Set the event to stop all threads
-        self.beamforming_stop_event.set()
-        
-        # End the beamforming thread
-        self.beamforming_thread.join()
-        print("Beamforming thread stopped.")
-        
-        # Clear the beamforming queue
-        while not self.beamforming_queue.empty():
-            try:
-                self.beamforming_queue.get_nowait()
-            except queue.Empty:
-                break
-        print("Beamforming queue cleared.")
-    
-    def _generators_for_beamforming(self):
-        """ Setup the generators for the beamforming process
-        """
-        print("Setting up generators for beamforming.")
-        # TODO: anpassen -> die Präzision ist wichtig für die Berechnung der CSM
-        # 16-Kanal-Mikrofon-Array-Daten-Generator
-        self.dev = ac.SoundDeviceSamplesGenerator(device=self.mic_index, numchannels=16)
-        
-        # Sample Splitter für parallele Verarbeitung
-        #self.sample_splitter = ac.TimeSamplesSplitter(source=self.dev)
-        
-        # Generator zum Protokollieren der Zeitdaten
-        # TODO: make this work
-        # self.WriteH5 = ac.WriteH5(source=self.sample_splitter, name=self.filename_base)
-        #self.dummy_saving_generator = ac.TimeInOut(source=self.sample_splitter)
 
-        # TODO replace with time beamforming
-        self.ps = ac.PowerSpectra(source=self.dev)
-        
-    def _setup_beamforming(self):
-        """ Setup the beamforming algorithm
-        """
-        print("Setting up beamforming.")
-        # TODO: Beamforming-Algorithmus initialisieren
-        # self.bb = ac.BeamformerBase(...)
-        pass  # Platzhalter
-    
-    def _beamforming_threads(self):
-        """ Threads for the beamforming process
-        """
-        # Queue for the beamforming data
-        self.beamforming_queue = Queue(maxsize=self.beamforming_buffer_size)
-        
-        # Event to eventually stop all threads
-        self.beamforming_stop_event = Event()
-        
-        # Thread
-        self.beamforming_thread = Thread(target=self._beamforming_generator)
-    
-    def _beamforming_generator(self):
-        """ Beamforming-Generator
-        """
-        while not self.beamforming_stop_event.is_set():
-            with self.frequency_lock:
-                current_frequency = self.frequency
-            # TODO: Beamforming-Ergebnisse berechnen
-            # pm = self.bb.synthetic(self.frequency, 3)
-            # Lm = ac.L_p(pm)
-            # self.beamforming_queue.put(Lm)
-            
-            # Platzhalter für echte Beamforming-Berechnung:
-            # pm = self.bb.synthetic(self.frequency, 3)
-            # Lm = ac.L_p(pm)
-            # self.beamforming_queue.put(Lm)
-            
-            # Für das Beispiel verwenden wir Dummy-Daten:
-            dummy = np.random.rand(64, 64)
-            self.beamforming_queue.put(dummy)
-              
-    def update_frequency(self, frequency):
-        """ Update the target frequency for the model
-        """
-        with self.frequency_lock:
-            self.frequency = frequency
-        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
-        print(f"Frequency updated to {self.frequency} Hz.")
-    
-    def get_uma_data(self):
-        """  Returns the time data of the microphone array      
-        """
-        signal = ac.tools.return_result(self.dev_data, num=256)
-        return {
-            'x': self.t.tolist(), 
-            'y': signal.tolist()
-        }
-        
-    def _generators_for_data(self):
-        """ Setup the generators for the data processing
-        """
-        # 16-Channel-Microphone-Array-Data-Generator
-        self.dev_data = ac.SoundDeviceSamplesGenerator(device=self.mic_index, numchannels=16)
-        
-        # Length of the recording
-        self.recording_time = 0.1
-        self.dev_data.numsamples = int(self.recording_time * self.dev_data.sample_freq)
-        self.t = np.arange(self.dev_data.numsamples) / self.dev_data.sample_freq
-        
-    def _get_current_timestamp(self):
-        """ Get the current timestamp in ISO format
-        """
-        return datetime.datetime.now().isoformat() 
-                
-    def _save_results(self): #P4
-        """ Save the results to a CSV and H5 file
-        """
-        timestamp = self._get_current_timestamp()
-        
-        current_results = self.get_results()
-        
-        with self.frequency_lock:
-            current_frequency = self.frequency
-        
-        # Save the results to a CSV file
-        if self.save_csv:
-            csv_filename = self.filename_base + '.csv'
-            with open(csv_filename, mode='a', newline='') as file:
-                writer = csv.writer(file)
-                for x, y, s in zip(current_results['x'], current_results['y'], current_results['s']):
-                    writer.writerow([timestamp, current_frequency, x, y, s])
-        
-        # Save the results to a H5 file
-        if self.save_h5:
-            h5_filename = self.filename_base + '.h5'
-            with h5py.File(h5_filename, 'a') as hf:
-                if 'x' not in hf:
-                    hf.create_dataset('timestamp', data=np.array([timestamp]*len(current_results['x']), dtype='S19'), maxshape=(None,))
-                    hf.create_dataset('frequency', data=np.array([current_frequency]*len(current_results['x'])), maxshape=(None,))
-                    hf.create_dataset('x', data=np.array(current_results['x']), maxshape=(None,))
-                    hf.create_dataset('y', data=np.array(current_results['y']), maxshape=(None,))
-                    hf.create_dataset('s', data=np.array(current_results['s']), maxshape=(None,))  
-                else:
-                    for key in ['x', 'y', 's']:
-                        dataset = hf[key]
-                        dataset.resize((dataset.shape[0] + len(current_results[key]),))
-                        dataset[-len(current_results[key]):] = current_results[key]
-                    
-                    timestamp_dataset = hf['timestamp']
-                    timestamp_dataset.resize((timestamp_dataset.shape[0] + len(current_results['x']),))
-                    timestamp_dataset[-len(current_results['x']):] = [timestamp.encode('utf-8')] * len(current_results['x'])
-                    freq_dataset = hf['frequency']
-                    freq_dataset.resize((freq_dataset.shape[0] + len(current_results['x']),))
-                    freq_dataset[-len(current_results['x']):] = [current_frequency] * len(current_results['x'])
-    
+config_uma = ConfigUMA()
+mic_index = uma16_index()
+model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03"
+model_config_path = model_dir + "/config.toml"
+ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
+results_filename = "test_results"
+ 
+ac.config.global_caching = 'none' # type: ignore
+
+processor = Processor(
+    config_uma,
+    mic_index,
+    model_config_path,
+    results_filename,
+    ckpt_path,
+    save_csv=False,
+    save_h5=False
+)
+
+processor.start_model()
+time.sleep(5)
+processor.stop_model()
