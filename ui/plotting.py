@@ -5,6 +5,9 @@ from bokeh.transform import linear_cmap # type: ignore
 from .config_ui import *
 import numpy as np
 
+# Probleme
+# 1: Wie werden Datan kalibriert? Stärke #P1
+
 
 class AcousticCameraPlot:
     def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1.5, Z=3.0, min_distance=1):
@@ -39,7 +42,8 @@ class AcousticCameraPlot:
         self.xmin, self.xmax, self.ymin, self.ymax = self.calculate_view_range(Z)
         
         # Point sizes for the model data
-        self.min_point_size, self.max_point_size = 5, 20
+        # TODO: sinnvolle Werte finden
+        self.min_point_size, self.max_point_size = 2, 15
         
         # Data sources for the model data
         self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[], sizes=[]))
@@ -85,9 +89,7 @@ class AcousticCameraPlot:
         
         mask = s >= self.threshold
         
-        x, y, z, s = x[mask], y[mask], z[mask], s[mask]
-        
-        print(z)
+        x, y, z, s, sizes = x[mask], y[mask], z[mask], s[mask], sizes[mask]
 
         self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
     
@@ -173,8 +175,9 @@ class AcousticCameraPlot:
     def _create_plot(self):
         fig = self._create_base_fig()
         
-        bar_low = 0
-        bar_high = 100
+        # TODO je nach dem wie Kalbiriert wurde
+        bar_low = 65 #P1
+        bar_high = 85
 
         color_mapper = linear_cmap('s', Viridis256, bar_low, bar_high)
 

@@ -9,7 +9,10 @@ ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = False
-Z = 2 #m
+Z = 3 #m
+MIN_DISTANCE = 1 #m
+THRESHOLD = 0 #dB
+
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
 
@@ -58,7 +61,10 @@ dashboard = Dashboard(
     BEAMFORMING_UPDATE_INTERVAL,
     CAMERA_UPDATE_INTERVAL, 
     STREAM_UPDATE_INTERVAL,
-    alphas)
+    THRESHOLD,
+    alphas,
+    Z,
+    MIN_DISTANCE)
 
 doc = curdoc()
 doc.add_root(dashboard.get_layout())

@@ -7,7 +7,7 @@ from .config_ui import *
 
 
 class Dashboard:
-    def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, alphas, z, min_distance):
+    def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, threshold, alphas, z, min_distance):
 
         # Angles of the camera view
         self.alphas = alphas
@@ -32,6 +32,7 @@ class Dashboard:
                                         frame_height=video_stream.frame_height,
                                         mic_positions=mic_array_config.mic_positions(),
                                         alphas=self.alphas,
+                                        threshold=threshold,
                                         Z=z,
                                         min_distance=min_distance
                                     )    
