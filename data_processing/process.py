@@ -19,7 +19,7 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 class Processor:
     def __init__(self, uma_config, mic_index, model_config_path, results_filename, ckpt_path, save_csv, save_h5, 
-                 csm_buffer_size=250, beamforming_buffer_size=150):
+                 csm_buffer_size=250, beamforming_buffer_size=150, csm_block_size=256):
         """ Processor for the UMA16 Acoustic Camera
 
         """
@@ -46,6 +46,12 @@ class Processor:
         
         # Size of the buffer in CSM queue
         self.csm_buffer_size = csm_buffer_size
+        
+        # Size of one block in CSM
+        self.csm_block_size = csm_block_size
+        
+        # Shape of the CSM
+        self.csm_shape = (int(csm_block_size/2+1), 16, 16)
         
         # Size of the buffer in beamforming queue
         self.beamforming_buffer_size = beamforming_buffer_size
@@ -79,8 +85,8 @@ class Processor:
         self._model_threads()
         
         # Start thread for data logging
-        #print("Starting Data Saving thread.") #P1
-        #self.save_time_samples_thread.start()
+        print("Starting Data Saving thread.") #P1
+        self.save_time_samples_thread.start()
         
         # Start thread for CSM generation
         print("Starting CSM thread.")
@@ -105,8 +111,8 @@ class Processor:
         self.compute_prediction_thread.join() 
         print("Prediction thread stopped.")
         
-        #self._save_time_samples_thread.join() #P1
-        #print("Data Saving thread stopped.")
+        self.save_time_samples_thread.join() #P1
+        print("Data Saving thread stopped.")
 
         # Clear the CSM queue
         while not self.csm_queue.empty():
@@ -132,20 +138,20 @@ class Processor:
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16) #P0
         
         # Sample Splitter for parallel processing
-        #sample_splitter = ac.SampleSplitter(source=self.dev) #P1
+        sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) #P1
         
         # Generator for logging the time data
-        #self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
 
         # Real Fast Fourier Transform
-        #self.fft = ac.RFFT(source=sample_splitter, block_size=256) #P1
-        self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
+        self.fft = ac.RFFT(source=sample_splitter, block_size=self.csm_block_size) #P1
+        #self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
         
         # Cross Power Spectra -> CSM
         self.csm_gen = ac.CrossPowerSpectra(source=self.fft)
         
         # Register the objects
-        #sample_splitter.register_object(self.fft, self.writeH5) #P1
+        sample_splitter.register_object(self.fft, self.writeH5) #P1
         
         # TODO: When MaskedSpectraInOut is implemented, use it here to filter freqencies
         # Problem: This means, we have to restart the model setup, when the frequency is updated
@@ -156,13 +162,21 @@ class Processor:
         # Index of the target frequency -> not necessary if MaskedSpectraInOut is used
         self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency) #P2
         
-    # TODO: make this work   
-    def _save_time_samples(self): #P1
-        """ Save the time samples to a H5 file
-        """
-    #     while not self.model_stop_event.is_set():
-    #         self.writeH5.result(num=10) 
-        pass
+    def _save_time_samples(self):
+        """ Save the time samples to a H5 file """
+        gen = self.writeH5.result(num=self.csm_block_size)
+        block_count = 0
+        
+        while not self.model_stop_event.is_set():
+            try:
+                next(gen)
+                block_count += 1
+                
+            except StopIteration:
+                break
+            
+        print("Finished saving time samples.")
+        print(f"Saved {block_count} blocks.")
         
     def _setup_model(self):
         """ Setup the model for the prediction
@@ -196,7 +210,7 @@ class Processor:
         # Threads
         self.csm_thread = Thread(target=self._csm_generator)
         self.compute_prediction_thread = Thread(target=self._predictor)
-        #self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
+        self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
         
     def _csm_generator(self):
         """ CSM generator thread for the model
@@ -280,7 +294,7 @@ class Processor:
         """ Preprocess the CSM data
         """
         # will not be necessary, as soon as MsskedSpectraInOut is implemented
-        csm = np.real(data).reshape(129, 16, 16) #P2
+        csm = np.real(data).reshape(self.csm_shape) #P2
         #csm = np.real(data).reshape(len(data)/(16*16), 16, 16)
         csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels) #P2
 
