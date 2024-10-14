@@ -317,7 +317,7 @@ mic_index = uma16_index()
 model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03"
 model_config_path = model_dir + "/config.toml"
 ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
-results_filename = "test_results"
+results_filename = "test_results.h5"
  
 ac.config.global_caching = 'none' # type: ignore
 
