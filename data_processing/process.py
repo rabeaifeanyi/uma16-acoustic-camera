@@ -17,7 +17,7 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 # 0: All sorts of small problems #P0
 
 class Processor:
-    def __init__(self, uma_config, mic_index, model_config_path, results_filename, ckpt_path, save_csv, save_h5, 
+    def __init__(self, uma_config, mic_index, model_config_path, results_folder, ckpt_path, save_csv, save_h5, 
                  csm_buffer_size=250, beamforming_buffer_size=150, csm_block_size=256):
         """ Processor for the UMA16 Acoustic Camera
 
@@ -62,9 +62,9 @@ class Processor:
             'z': [0],
             's': [0]
         }
-
+        
         # Filename for the results
-        self.filename_base = results_filename
+        self.results_folder = results_folder
         
         # Boolean flags for saving the results
         self.save_csv = save_csv
@@ -77,6 +77,9 @@ class Processor:
         """ Start the model processing
         """
         print("\nStarting the model.")
+        
+        # filenames
+        self.data_filename, self.results_filename = self._get_result_filenames('model')
         
         # Call functions to setup the model
         self._generators_for_model()
@@ -140,7 +143,7 @@ class Processor:
         sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) 
         
         # Generator for logging the time data
-        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") 
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.data_filename}.h5") 
 
         # Real Fast Fourier Transform
         self.fft = ac.RFFT(source=sample_splitter, block_size=self.csm_block_size)
@@ -320,6 +323,9 @@ class Processor:
         """
         print("\nStarting beamforming.")
         
+        # filenames
+        self.data_filename, self.results_filename = self._get_result_filenames('beamforming')
+        
         # Setup the generators for the beamforming process
         self._generators_for_beamforming()
         self._setup_beamforming()
@@ -362,7 +368,7 @@ class Processor:
         
         # Generator zum Protokollieren der Zeitdaten
         # TODO: make this work
-        # self.WriteH5 = ac.WriteH5(source=self.sample_splitter, name=self.filename_base)
+        # self.WriteH5 = ac.WriteH5(source=self.sample_splitter, name=data_filename)
         #self.dummy_saving_generator = ac.TimeInOut(source=self.sample_splitter)
 
         # TODO replace with time beamforming
@@ -440,6 +446,16 @@ class Processor:
         """ Get the current timestamp in ISO format
         """
         return datetime.datetime.now().isoformat() 
+    
+    def _get_result_filenames(self, type):
+        """ Get the filenames for the results
+        """
+        current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        
+        data_filename = self.results_folder + f'/{current_time}_{type}_time_data'
+        result_filename = self.results_folder + f'/{current_time}_{type}_results' 
+        
+        return data_filename, result_filename
                 
     def _save_results(self): #P4
         """ Save the results to a CSV and H5 file
@@ -453,7 +469,7 @@ class Processor:
         
         # Save the results to a CSV file
         if self.save_csv:
-            csv_filename = self.filename_base + '.csv'
+            csv_filename = self.results_filename + '.csv'
             with open(csv_filename, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 for x, y, s in zip(current_results['x'], current_results['y'], current_results['s']):
@@ -461,16 +477,17 @@ class Processor:
         
         # Save the results to a H5 file
         if self.save_h5:
-            h5_filename = self.filename_base + '.h5'
+            h5_filename = self.results_filename + '.h5'
             with h5py.File(h5_filename, 'a') as hf:
                 if 'x' not in hf:
                     hf.create_dataset('timestamp', data=np.array([timestamp]*len(current_results['x']), dtype='S19'), maxshape=(None,))
                     hf.create_dataset('frequency', data=np.array([current_frequency]*len(current_results['x'])), maxshape=(None,))
                     hf.create_dataset('x', data=np.array(current_results['x']), maxshape=(None,))
                     hf.create_dataset('y', data=np.array(current_results['y']), maxshape=(None,))
+                    hf.create_dataset('z', data=np.array(current_results['z']), maxshape=(None,))
                     hf.create_dataset('s', data=np.array(current_results['s']), maxshape=(None,))  
                 else:
-                    for key in ['x', 'y', 's']:
+                    for key in ['x', 'y', 'z', 's']:
                         dataset = hf[key]
                         dataset.resize((dataset.shape[0] + len(current_results[key]),))
                         dataset[-len(current_results[key]):] = current_results[key]
