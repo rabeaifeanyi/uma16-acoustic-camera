@@ -19,7 +19,7 @@ alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel Ã
 
 # Configuration for saving results
 CSV = False
-H5 = False
+H5 = True
 
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 1000
@@ -39,10 +39,6 @@ results_folder = 'messungen'
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 
-# Filename for results
-current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-results_filename = results_folder + f'/results_from_{current_time}'
-
 # Initialize video stream and model processor
 video_index = 0
 mic_index = uma16_index()
@@ -57,7 +53,7 @@ processor = Processor(
     config_uma, 
     mic_index,
     model_config_path, 
-    results_filename,
+    results_folder,
     ckpt_path,
     CSV,
     H5)
