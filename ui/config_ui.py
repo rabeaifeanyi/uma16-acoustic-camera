@@ -30,3 +30,7 @@ ORIGINHEADSIZE = 8
 FIG_WIDTH = 800
 FIG_HEIGHT = 600
 SIDEBAR_WIDTH = 300
+
+
+start_text = "Messung starten"
+stop_text = "Messung beenden"

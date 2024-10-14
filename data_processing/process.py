@@ -286,7 +286,7 @@ class Processor:
                         's': strength_pred.tolist()
                     }
                     
-                #self._save_results() #P4
+                self._save_results() #P4
                 
     def _preprocess_csm(self, data):
         """ Preprocess the CSM data

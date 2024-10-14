@@ -1,5 +1,6 @@
 import acoular as ac # type: ignore
 import datetime
+import os
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from data_processing import Processor
@@ -27,14 +28,22 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-model_dir = "/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03"
-model_config_path = model_dir + "/config.toml"
+model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03'
+model_config_path = model_dir + '/config.toml'
 ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
 
-# Filename for results
-current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-results_filename = f"results_{current_time}"
+# Folder for results
+results_folder = 'messungen'
 
+# check if folder exists
+if not os.path.exists(results_folder):
+    os.makedirs(results_folder)
+
+# Filename for results
+current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+results_filename = results_folder + f'/results_from_{current_time}'
+
+# Initialize video stream and model processor
 video_index = 0
 mic_index = uma16_index()
 
