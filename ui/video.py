@@ -5,12 +5,12 @@ from config import load_calibration_data
 class VideoStream:
     """Class for reading video frames from a video capture object."""
     
-    def __init__(self, camera_index, sf=1, undistort=False):
+    def __init__(self, camera_index, undistort=False):
         """Initialize the video stream with the given frame dimensions and camera index."""
         self.camera_index = camera_index
         self.vc = cv2.VideoCapture(camera_index)
-        self.frame_width = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH) * sf)
-        self.frame_height = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT) * sf)
+        self.frame_width = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.frame_height = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.undistort = undistort
         
         # Load camera calibration data
@@ -18,9 +18,9 @@ class VideoStream:
             self.camera_matrix, self.dist_coeffs, _, _ = load_calibration_data('config/camera_calibration.csv')
             self.new_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, 
                                                                       self.dist_coeffs, 
-                                                                      (self.frame_width, self.frame_height), # original image size
+                                                                      (self.frame_width, self.frame_height),
                                                                       1, # alpha
-                                                                      (self.frame_width, self.frame_height)) # new image size
+                                                                      (self.frame_width, self.frame_height))
         except FileNotFoundError:
             self.camera_matrix = None
             self.dist_coeffs = None
