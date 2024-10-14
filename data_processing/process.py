@@ -11,7 +11,6 @@ from modelsdfg.transformer.config import ConfigBase  # type: ignore
 from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 # Problems
-# 1: Sample Splitter not correctly implemented #P1
 # 2: MaskedSpectraInOut not yet implemented #P2
 # 3: Beamforming not implemented #P3
 # 4: Saving of results not tested #P4
@@ -85,7 +84,7 @@ class Processor:
         self._model_threads()
         
         # Start thread for data logging
-        print("Starting Data Saving thread.") #P1
+        print("Starting Data Saving thread.")
         self.save_time_samples_thread.start()
         
         # Start thread for CSM generation
@@ -111,7 +110,7 @@ class Processor:
         self.compute_prediction_thread.join() 
         print("Prediction thread stopped.")
         
-        self.save_time_samples_thread.join() #P1
+        self.save_time_samples_thread.join()
         print("Data Saving thread stopped.")
 
         # Clear the CSM queue
@@ -138,20 +137,19 @@ class Processor:
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16) #P0
         
         # Sample Splitter for parallel processing
-        sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) #P1
+        sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) 
         
         # Generator for logging the time data
-        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") #P1
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.filename_base}.h5") 
 
         # Real Fast Fourier Transform
-        self.fft = ac.RFFT(source=sample_splitter, block_size=self.csm_block_size) #P1
-        #self.fft = ac.RFFT(source=self.dev, block_size=256) #P1
+        self.fft = ac.RFFT(source=sample_splitter, block_size=self.csm_block_size)
         
         # Cross Power Spectra -> CSM
         self.csm_gen = ac.CrossPowerSpectra(source=self.fft)
         
         # Register the objects
-        sample_splitter.register_object(self.fft, self.writeH5) #P1
+        sample_splitter.register_object(self.fft, self.writeH5)
         
         # TODO: When MaskedSpectraInOut is implemented, use it here to filter freqencies
         # Problem: This means, we have to restart the model setup, when the frequency is updated
@@ -210,7 +208,7 @@ class Processor:
         # Threads
         self.csm_thread = Thread(target=self._csm_generator)
         self.compute_prediction_thread = Thread(target=self._predictor)
-        self.save_time_samples_thread = Thread(target=self._save_time_samples) #P1
+        self.save_time_samples_thread = Thread(target=self._save_time_samples) 
         
     def _csm_generator(self):
         """ CSM generator thread for the model
