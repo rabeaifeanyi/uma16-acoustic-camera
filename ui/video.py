@@ -12,6 +12,8 @@ class VideoStream:
         self.vc = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
         
         self.vc.set(cv2.CAP_PROP_FPS, fps)
+        self.vc.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.vc.set(cv2.CAP_PROP_POS_AVI_RATIO, 1)
         
         self.vc.set(cv2.CAP_PROP_FRAME_WIDTH, desired_width)
         self.vc.set(cv2.CAP_PROP_FRAME_HEIGHT, desired_height)
@@ -39,8 +41,6 @@ class VideoStream:
             self.camera_matrix = None
             self.dist_coeffs = None
             self.new_camera_matrix = None
-            
-        
         
     def start(self):
         """Start the video capture if it's not already running."""
@@ -51,17 +51,17 @@ class VideoStream:
         """Stop the video capture."""
         if self.vc.isOpened():
             self.vc.release()
-        
 
     def get_frame(self):
         """Read a frame from the video capture object and return it as an RGBA image."""
+        
         rval, frame = self.vc.read()
 
         if rval:
             frame = cv2.resize(frame, (self.frame_width, self.frame_height))
             
-            if self.undistort and self.camera_matrix:
-                frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
+            #if self.undistort and self.camera_matrix:
+                #frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
 
             #img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
             #view = img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
@@ -69,9 +69,5 @@ class VideoStream:
             self.view[:, :, 2] = frame[:, :, 0]
             self.view[:, :, 1] = frame[:, :, 1]
             self.view[:, :, 3] = 255 
-   
-            #return img
-        
-        #return None
 
 

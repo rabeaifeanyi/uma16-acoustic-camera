@@ -15,7 +15,7 @@ MIN_DISTANCE = 1 #m
 THRESHOLD = 0 #dB
 DESIRED_WIDTH = 640
 DESIRED_HEIGHT = 480
-FPS = 30
+FPS = 20
 SCALE_FACTOR = 1.5
 
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
@@ -28,7 +28,7 @@ H5 = True
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 100
 BEAMFORMING_UPDATE_INTERVAL = 1000
-CAMERA_UPDATE_INTERVAL = 20 
+CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
