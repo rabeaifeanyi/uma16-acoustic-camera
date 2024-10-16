@@ -16,6 +16,13 @@ class Dashboard:
         
         # Video stream object
         self.video_stream = video_stream
+        self.camera_on = True
+        
+        if self.video_stream:
+            self.frame_width, self.frame_height = video_stream.frame_width, video_stream.frame_height
+        else:
+            self.frame_width, self.frame_height = 640, 480
+            self.camera_on = False
 
         # Data Processor object, contains model and beamforming
         self.processor = processor
@@ -29,10 +36,11 @@ class Dashboard:
         
         # Setting up the acoustic camera plot
         self.acoustic_camera_plot = AcousticCameraPlot(
-                                        frame_width=video_stream.frame_width,
-                                        frame_height=video_stream.frame_height,
+                                        frame_width=self.frame_width,
+                                        frame_height=self.frame_height,
                                         mic_positions=mic_array_config.mic_positions(),
                                         alphas=self.alphas,
+                                        camera_on=self.camera_on,
                                         threshold=threshold,
                                         Z=z,
                                         scale_factor=scale_factor,
@@ -111,12 +119,15 @@ class Dashboard:
         # Possible solution: Add a check if model_thread is None before stopping
         self.measurement_button = Button(label="Start Messung")
         
+        self.checkbox_use_camera = CheckboxGroup(labels=["use camera"], active=[])
+        
         # Grouping relevant UI elements into a single container (sidebar_section)
         self.sidebar_section = column(
             self.f_input,
             self.checkbox_group,
             self.method_selector,
             self.measurement_button,
+            self.checkbox_use_camera,
             self.overflow_status
         )
         
@@ -237,7 +248,8 @@ class Dashboard:
     # Acoustic Camera Plot
     def start_acoustic_camera_plot(self):
         self.stop_stream_plot()
-        self.video_stream.start()
+        if self.video_stream:
+            self.video_stream.start()
         
         # Deep Learning
         if self.method == 0:
@@ -251,14 +263,17 @@ class Dashboard:
             self.acoustic_camera_plot.model_renderer.visible = False
             self.acoustic_camera_plot.beamforming_renderer.visible = True
 
-        if self.camera_view_callback is None:
-            self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
+        if self.video_stream:
+            if self.camera_view_callback is None:
+                self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
         
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
-        if self.camera_view_callback is not None:
-            curdoc().remove_periodic_callback(self.camera_view_callback)
-            self.camera_view_callback = None
+        
+        if self.video_stream:
+            if self.camera_view_callback is not None:
+                curdoc().remove_periodic_callback(self.camera_view_callback)
+                self.camera_view_callback = None
 
         if self.estimation_callback is not None:
             curdoc().remove_periodic_callback(self.estimation_callback)
@@ -269,7 +284,8 @@ class Dashboard:
             self.beamforming_callback = None
             
         self.stop_measurement()
-        self.video_stream.stop()
+        if self.video_stream:
+            self.video_stream.stop()
             
     # Stream Plot
     def start_stream_plot(self):

@@ -7,10 +7,13 @@ import numpy as np
 
 # Probleme
 # 1: Wie werden Datan kalibriert? Stärke #P1
+# 2 Camera an und aus #P2
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, camera_on, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
+        
+        self.camera_on = camera_on
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -26,7 +29,8 @@ class AcousticCameraPlot:
         self.threshold = threshold
         
         # Data source for the camera image
-        self.camera_cds = ColumnDataSource({'image_data': []})
+        if camera_on:
+            self.camera_cds = ColumnDataSource({'image_data': []})
         
         # Data source for the microphone positions
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
@@ -123,13 +127,14 @@ class AcousticCameraPlot:
                      output_backend='webgl',
                      aspect_ratio=1)
         
-        fig.image_rgba(image='image_data', 
-                       x=self.xmin, 
-                       y=self.ymin, 
-                       dw=(self.xmax-self.xmin), 
-                       dh=(self.ymax-self.ymin), 
-                       source=self.camera_cds, 
-                       alpha=VIDEOALPHA)
+        if self.camera_on:
+            fig.image_rgba(image='image_data', 
+                        x=self.xmin, 
+                        y=self.ymin, 
+                        dw=(self.xmax-self.xmin), 
+                        dh=(self.ymax-self.ymin), 
+                        source=self.camera_cds, 
+                        alpha=VIDEOALPHA)
         
         self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
         

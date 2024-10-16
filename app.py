@@ -49,9 +49,8 @@ mic_index = uma16_index()
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
-video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
-frame_width = video_stream.frame_width
-frame_height = video_stream.frame_height
+#video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
+video_stream = False
 
 processor = Processor(
     config_uma, 
