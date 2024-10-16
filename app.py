@@ -13,6 +13,10 @@ UNDISTORT = False
 Z = 3 #m
 MIN_DISTANCE = 1 #m
 THRESHOLD = 0 #dB
+DESIRED_WIDTH = 640
+DESIRED_HEIGHT = 480
+FPS = 30
+SCALE_FACTOR = 1.5
 
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
@@ -22,9 +26,9 @@ CSV = False
 H5 = True
 
 # Update rate configurations in ms
-ESTIMATION_UPDATE_INTERVAL = 1000
+ESTIMATION_UPDATE_INTERVAL = 100
 BEAMFORMING_UPDATE_INTERVAL = 1000
-CAMERA_UPDATE_INTERVAL = 100
+CAMERA_UPDATE_INTERVAL = 20 
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
@@ -45,7 +49,7 @@ mic_index = uma16_index()
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
-video_stream = VideoStream(video_index, undistort=UNDISTORT)
+video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
 frame_width = video_stream.frame_width
 frame_height = video_stream.frame_height
 
@@ -68,6 +72,7 @@ dashboard = Dashboard(
     STREAM_UPDATE_INTERVAL,
     THRESHOLD,
     alphas,
+    SCALE_FACTOR,
     Z,
     MIN_DISTANCE)
 

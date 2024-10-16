@@ -5,13 +5,27 @@ from config import load_calibration_data
 class VideoStream:
     """Class for reading video frames from a video capture object."""
     
-    def __init__(self, camera_index, undistort=False):
+    
+    def __init__(self, camera_index, fps=15, desired_width=640, desired_height=480, undistort=False):
         """Initialize the video stream with the given frame dimensions and camera index."""
         self.camera_index = camera_index
-        self.vc = cv2.VideoCapture(camera_index)
-        self.frame_width = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frame_height = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.vc = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+        
+        self.vc.set(cv2.CAP_PROP_FPS, fps)
+        
+        self.vc.set(cv2.CAP_PROP_FRAME_WIDTH, desired_width)
+        self.vc.set(cv2.CAP_PROP_FRAME_HEIGHT, desired_height)
+    
+        #self.frame_width = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH))
+        #self.frame_height = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        self.frame_height = desired_height
+        self.frame_width = desired_width
+        
         self.undistort = undistort
+        
+        self.img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
+        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
         
         # Load camera calibration data
         try:
@@ -25,6 +39,8 @@ class VideoStream:
             self.camera_matrix = None
             self.dist_coeffs = None
             self.new_camera_matrix = None
+            
+        
         
     def start(self):
         """Start the video capture if it's not already running."""
@@ -35,6 +51,7 @@ class VideoStream:
         """Stop the video capture."""
         if self.vc.isOpened():
             self.vc.release()
+        
 
     def get_frame(self):
         """Read a frame from the video capture object and return it as an RGBA image."""
@@ -46,14 +63,15 @@ class VideoStream:
             if self.undistort and self.camera_matrix:
                 frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
 
-            img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
-            view = img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
-            view[:, :, 0] = frame[:, :, 2]
-            view[:, :, 2] = frame[:, :, 0]
-            view[:, :, 1] = frame[:, :, 1]
-            view[:, :, 3] = 255 
+            #img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
+            #view = img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
+            self.view[:, :, 0] = frame[:, :, 2]
+            self.view[:, :, 2] = frame[:, :, 0]
+            self.view[:, :, 1] = frame[:, :, 1]
+            self.view[:, :, 3] = 255 
    
-            return img
+            #return img
         
-        return None
+        #return None
+
 

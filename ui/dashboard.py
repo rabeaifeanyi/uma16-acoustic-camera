@@ -7,7 +7,9 @@ from .config_ui import *
 
 
 class Dashboard:
-    def __init__(self, video_stream, processor, mic_array_config, estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, threshold, alphas, z, min_distance):
+    def __init__(self, video_stream, processor, mic_array_config, 
+                 estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, 
+                 threshold, alphas, scale_factor, z, min_distance):
 
         # Angles of the camera view
         self.alphas = alphas
@@ -33,6 +35,7 @@ class Dashboard:
                                         alphas=self.alphas,
                                         threshold=threshold,
                                         Z=z,
+                                        scale_factor=scale_factor,
                                         min_distance=min_distance
                                     )    
         
@@ -315,9 +318,8 @@ class Dashboard:
     
     # Camera View
     def update_camera_view(self):
-        img = self.video_stream.get_frame()
-        if img is not None:
-            self.acoustic_camera_plot.update_camera_image(img)
+        self.video_stream.get_frame()
+        self.acoustic_camera_plot.update_camera_image(self.video_stream.img)
 
     # Deep Learning
     def start_model(self):
@@ -330,8 +332,7 @@ class Dashboard:
             
         if self.overflow_callback is None:
             self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
-
-                        
+    
     def stop_model(self):
         if self.model_thread is not None:
             self.processor.stop_model()
@@ -347,7 +348,7 @@ class Dashboard:
             self.overflow_callback = None
             
     def update_estimations(self):
-        model_data = self.processor.results
+        model_data = self.processor.get_results()
         self.acoustic_camera_plot.update_plot_model(model_data)
          
     # Beamforming   
@@ -359,9 +360,6 @@ class Dashboard:
         if self.beamforming_callback is None:
             self.beamforming_callback = curdoc().add_periodic_callback(self.update_beamforming, self.beamforming_update_interval)
             
-        if self.overflow_callback is None:
-            self.overflow_callback = curdoc().add_periodic_callback(self.update_overflow_status, self.overflow_update_interval)
-            
     def stop_beamforming(self):
         if self.beamforming_thread is not None:
             self.beamforming_thread.join()
@@ -370,13 +368,9 @@ class Dashboard:
         if self.beamforming_callback is not None:
             curdoc().remove_periodic_callback(self.beamforming_callback)
             self.beamforming_callback = None
-            
-        if self.overflow_callback is not None:
-            curdoc().remove_periodic_callback(self.overflow_callback)
-            self.overflow_callback = None
 
     def update_beamforming(self):
-        beamforming_data = self.processor.results
+        beamforming_data = self.processor.get_beamforming_results()
         self.acoustic_camera_plot.update_plot_beamforming(beamforming_data)
     
     # Stream

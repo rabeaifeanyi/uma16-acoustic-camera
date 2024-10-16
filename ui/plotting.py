@@ -10,7 +10,7 @@ import numpy as np
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1.5, Z=3.0, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -49,7 +49,12 @@ class AcousticCameraPlot:
         self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[], sizes=[]))
         
         # Data source for the beamforming data
-        self.beamforming_cds = ColumnDataSource(data=dict(image=[], x=[], y=[], dw=[], dh=[]))
+        self.beamforming_cds = ColumnDataSource({'beamformer_data': []})    
+        
+        self.x_min, self.y_min = -1.5, -1.5
+        self.x_max, self.y_max = 1.5, 1.5
+        self.dx = self.x_max - self.x_min
+        self.dy = self.y_max - self.y_min
         
         # Create the plot
         self.fig = self._create_plot()
@@ -94,18 +99,7 @@ class AcousticCameraPlot:
         self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
     
     def update_plot_beamforming(self, beamforming_data):
-        Lm = beamforming_data['s']
-
-        self.color_mapper.low = np.min(Lm)
-        self.color_mapper.high = np.max(Lm)
-
-        self.beamforming_cds.data = dict(
-            image=[Lm],
-            x=[self.xmin],
-            y=[self.ymin],
-            dw=[self.xmax - self.xmin],
-            dh=[self.ymax - self.ymin]
-        )
+        self.beamforming_cds.data['beamformer_data'] = [beamforming_data]
 
     def update_camera_image(self, img):
         self.camera_cds.data['image_data'] = [img]
@@ -196,11 +190,11 @@ class AcousticCameraPlot:
 
         # Renderer für Beamforming-Daten
         self.beamforming_renderer = fig.image(
-            image='image',
-            x='x',
-            y='y',
-            dw='dw',
-            dh='dh',
+            image='beamformer_data',
+            x=self.x_min,
+            y=self.y_min,
+            dw=self.dx,
+            dh=self.dy,
             source=self.beamforming_cds,
             color_mapper=self.color_mapper,
             level='image',
