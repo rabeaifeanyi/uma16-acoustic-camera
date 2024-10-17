@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import sounddevice as sd # type: ignore
 import numpy as np
 
-# Messbereich in m
+#Messbereich in m
 YMIN_MEASUREMENT = -1.5
 YMAX_MEASUREMENT = 1.5
 XMIN_MEASUREMENT = -1.5
@@ -17,7 +17,7 @@ Z = 2.0
 INCREMENT = 3/63
 MAXNSOURCES = 9
 
-# UMA aperture: 0.178 m
+#UMA aperture: 0.178 m
 
 #TODO import rather than copy
 class ConfigUMAnew(DatasetSyntheticConfig):
@@ -99,7 +99,7 @@ class ConfigUMA(DatasetSyntheticConfig):
         # [[ 0.021  0.063  0.021  0.063  0.021  0.063  0.021  0.063 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021 -0.063 -0.021]
         #  [-0.063 -0.063 -0.021 -0.021  0.021  0.021  0.063  0.063  0.063  0.063  0.021  0.021 -0.021 -0.021 -0.063 -0.063]
         #  [ 0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.     0.   ]]
-        # ref mic index: 0
+        #ref mic index: 0
         
 def uma16_index():
     """Get the index of the UMA-16 microphone array.

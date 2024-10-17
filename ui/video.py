@@ -4,7 +4,7 @@ from config import load_calibration_data
 
 class VideoStream:
     """Class for reading video frames from a video capture object."""
-    
+
     
     def __init__(self, camera_index, fps=15, desired_width=640, desired_height=480, undistort=False):
         """Initialize the video stream with the given frame dimensions and camera index."""
@@ -18,16 +18,13 @@ class VideoStream:
         self.vc.set(cv2.CAP_PROP_FRAME_WIDTH, desired_width)
         self.vc.set(cv2.CAP_PROP_FRAME_HEIGHT, desired_height)
     
-        #self.frame_width = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH))
-        #self.frame_height = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
         self.frame_height = desired_height
         self.frame_width = desired_width
         
         self.undistort = undistort
         
         self.img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
-        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
+        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::]
         
         # Load camera calibration data
         try:

@@ -38,7 +38,7 @@ class Dashboard:
         self.acoustic_camera_plot = AcousticCameraPlot(
                                         frame_width=self.frame_width,
                                         frame_height=self.frame_height,
-                                        mic_positions=mic_array_config.mic_positions(),
+                                        mic_positions=mic_array_config.mic_positions(shifted=False),
                                         alphas=self.alphas,
                                         camera_on=self.camera_on,
                                         threshold=threshold,
@@ -378,6 +378,7 @@ class Dashboard:
             
     def stop_beamforming(self):
         if self.beamforming_thread is not None:
+            print("TRYING TO STOP!")
             self.beamforming_thread.join()
             self.beamforming_thread = None
             

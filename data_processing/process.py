@@ -5,9 +5,11 @@ import datetime
 import h5py  # type: ignore
 import csv
 from threading import Event, Lock, Thread
+from pathlib import Path
 from queue import Queue
+import time
 import queue  # Wichtig für Ausnahmen
-from modelsdfg.transformer.config import ConfigBase  # type: ignore
+from .SamplesProcessor import LastInOut
 from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 # Problems
@@ -16,18 +18,18 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 # 0: All sorts of small problems #P0
 
 class Processor:
-    def __init__(self, uma_config, mic_index, model_config_path, results_folder, ckpt_path, save_csv, save_h5, 
+    def __init__(self, device, results_folder, ckpt_path, save_csv, save_h5, 
                  csm_buffer_size=250, beamforming_buffer_size=150, csm_block_size=256):
         """ Processor for the UMA16 Acoustic Camera
-
         """
         # Microphone Index of microphone-array in local system
-        self.mic_index = mic_index
+        self.device = device
+        micgeom_path = Path(ac.__file__).parent / 'xml' / 'minidsp_uma-16_mirrored.xml'
+        self.mics = ac.MicGeom(from_file=micgeom_path)
         
         # Configuration of the UMA
-        self.uma_config = uma_config
-        
-        self.mics = uma_config.create_mics()
+        #self.uma_config = uma_config
+
         x_min, x_max, y_min, y_max = -1.5, 1.5, -1.5, 1.5
         z = 1.25
         increment = 0.1
@@ -48,9 +50,6 @@ class Processor:
         
         # Lock for beamforming results
         self.beamforming_result_lock = Lock()
-        
-        # Path to the model configuration folder
-        self.model_config_path = model_config_path
         
         # Path to the model checkpoint
         self.ckpt_path = ckpt_path
@@ -151,7 +150,7 @@ class Processor:
         print("Setting up generators for the model process.")
         # TODO: anpassen, falls möglich 
         # Data Generator
-        self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.mic_index, numchannels=16) #P0
+        self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
         
         # Sample Splitter for parallel processing
         sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) 
@@ -197,17 +196,8 @@ class Processor:
         """ Setup the model for the prediction
         """
         print("Setting up model.")
-        
-        # Load the model configuration
-        model_config = ConfigBase.from_toml(self.model_config_path)
-        
-        # Load the pipeline for the model
-        self.pipeline = model_config.datasets[1].pipeline.create_instance()
-        
-        # Load the validation pipeline
-        self.ref_mic_index = model_config.datasets[0].pipeline.args['ref_mic_index']
 
-        model_config.datasets[1].validation.cache = False
+        self.ref_mic_index = 0
         
         # Load the model
         self.model = tf.keras.models.load_model(self.ckpt_path)
@@ -292,7 +282,12 @@ class Processor:
                 strength_pred *= csm_norm
 
                 # Recover the location
-                loc_pred = self.pipeline.recover_loc(loc_pred.squeeze(), aperture=self.uma_config.mics.aperture)
+                #loc_pred = self.pipeline.recover_loc(loc_pred.squeeze(), aperture=self.uma_config.mics.aperture) #TODO
+                loc_pred = self.recover_loc(loc_pred.squeeze(), aperture=self.mics.aperture) 
+                
+                # TODO Adam ändert das noch
+                # aparture bleibe
+                # norm loc 2
                 
                 # Update the results
                 with self.result_lock:
@@ -302,8 +297,24 @@ class Processor:
                         'z': loc_pred[2].tolist(),
                         's': strength_pred.tolist()
                     }
+                    print(self.results)
                     
                 self._save_results()
+            time.sleep(0.5)
+    
+    def recover_loc(self, loc, aperture, shift_loc=True, norm_loc=2):
+        
+        if shift_loc:
+            if isinstance(shift_loc, float):
+                loc = loc - shift_loc
+            else:
+                loc = loc - 0.5
+        if norm_loc:
+            if isinstance(norm_loc, float):
+                loc = loc * norm_loc
+            else:
+                loc = loc * aperture
+        return loc
                 
     def _preprocess_csm(self, data):
         """ Preprocess the CSM data
@@ -312,9 +323,13 @@ class Processor:
         csm = np.real(data).reshape(self.csm_shape) #P2
         #csm = np.real(data).reshape(len(data)/(16*16), 16, 16)
         csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels) #P2
-
-        # MEMS Sensitivity
-        csm = csm / 0.03548**2 #P0
+        
+        # at this point, the CSM is in [Volt^2] since the microphone channel data
+        # is a voltage strea -> we need to convert it to squared sound pressure values [Pa^2]
+        # we do not account for the true sensitivity of the MEMS microphones here! 
+        # I just use a standard sensitivity of 16 mV/Pa for all microphones
+        # MEMS Sensitivity (94 dB SPL @ 1 kHz) -29 dBFS -> TODO?
+        csm = csm / 0.0016**2
 
         # Normalization of the CSM with respect to the reference microphone
         csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
@@ -371,8 +386,8 @@ class Processor:
         self.beamforming_thread.start()   
         print("Beamforming thread started.")
         
-        #self.save_time_samples_beamforming_thread.start()
-        #print("Time data saving thread started.")
+        self.save_time_samples_beamforming_thread.start()
+        print("Time data saving thread started.")
     
     def stop_beamforming(self):
         """ Stop the beamforming process
@@ -381,13 +396,12 @@ class Processor:
         
         # Set the event to stop all threads
         self.beamforming_stop_event.set()
-        
         # End the beamforming thread
         self.beamforming_thread.join()
         print("Beamforming thread stopped.")
         
-        #self.save_time_samples_beamforming_thread.join()
-        #print("Time data saving thread stopped.")
+        self.save_time_samples_beamforming_thread.join()
+        print("Time data saving thread stopped.")
         
     def get_beamforming_results(self):
         """ Get current results of the model
@@ -400,26 +414,32 @@ class Processor:
         """ Setup the generators for the beamforming process
         """
         print("Setting up generators for beamforming.")
+
+        
         
         # 16-Kanal-Mikrofon-Array-Daten-Generator
-        self.dev = ac.SoundDeviceSamplesGenerator(device=self.mic_index, numchannels=16)
+        self.dev = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
+        
+        self.source_mixer = ac.SourceMixer(sources=[self.dev],weights=np.array([1/0.0016]))
         
         # Sample Splitter
-        #sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024)
+        sample_splitter = ac.SampleSplitter(source=self.source_mixer, buffer_size=1024)
         
         # Generator for Logging time data
-        #self.writeH5 = ac.WriteH5(source=sample_splitter, name=self.data_filename)
+        self.writeH5 = ac.WriteH5(source=sample_splitter, name=self.data_filename)
 
         # Steering Vector
         steer = ac.SteeringVector(env=ac.Environment(c=343), grid=self.beamforming_grid, mics=self.mics)
         
         #self.bf = ac.BeamformerTime(source=sample_splitter, steer=steer)
-        self.bf = ac.BeamformerTime(source=self.dev, steer=steer)
+        self.lastOut = LastInOut(source=sample_splitter)
+        self.bf = ac.BeamformerTime(source=self.lastOut, steer=steer)
+        
         filter = ac.FiltOctave(source=self.bf, band=self.frequency, fraction='Third octave')
         power = ac.TimePower(source=filter)
         self.bf_out = ac.TimeAverage(source=power, naverage=512)
         
-        #sample_splitter.register_object(self.bf, self.writeH5)
+        sample_splitter.register_object(self.lastOut, self.writeH5)
         
     def _beamforming_threads(self):
         """ Threads for the beamforming process
@@ -429,22 +449,28 @@ class Processor:
         
         # Thread
         self.beamforming_thread = Thread(target=self._beamforming_generator)
-        #self.save_time_samples_beamforming_thread = Thread(target=self._save_time_samples_beamforming)
+        self.save_time_samples_beamforming_thread = Thread(target=self._save_time_samples_beamforming)
     
     def _beamforming_generator(self):
         """ Beamforming-Generator """
         gen = self.bf_out.result(num=1)
+        count = 0
         
         while not self.beamforming_stop_event.is_set():
             try:
                 res = ac.L_p(next(gen))
                 res = res.reshape(self.grid_dim)
-                    
-                with self.beamforming_result_lock:
-                    self.beamforming_results = res
+                count += 1
+                #with self.beamforming_result_lock:
+                self.beamforming_results = res
+                
+            except StopIteration:
+                print("Generator has been stopped.")
+                break
             except Exception as e:
                 print(f"Exception in _beamforming_generator: {e}")
                 break
+        print(f"Beamforming: Calculated {count} results.")
               
     def _save_time_samples_beamforming(self):
         """ Save the time samples to a H5 file """
@@ -483,7 +509,7 @@ class Processor:
         """ Setup the generators for the data processing
         """
         # 16-Channel-Microphone-Array-Data-Generator
-        self.dev_data = ac.SoundDeviceSamplesGenerator(device=self.mic_index, numchannels=16)
+        self.dev_data = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
         
         # Length of the recording
         self.recording_time = 0.1

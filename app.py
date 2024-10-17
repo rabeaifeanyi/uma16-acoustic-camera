@@ -12,7 +12,7 @@ ac.config.global_caching = 'none' # type: ignore
 UNDISTORT = False
 Z = 3 #m
 MIN_DISTANCE = 1 #m
-THRESHOLD = 0 #dB
+THRESHOLD = 0.001 
 DESIRED_WIDTH = 640
 DESIRED_HEIGHT = 480
 FPS = 20
@@ -32,9 +32,9 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_epochs100_2024-10-09_09-03'
+model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51'
 model_config_path = model_dir + '/config.toml'
-ckpt_path = model_dir + '/ckpt/best_ckpt/0078-1.06.keras'
+ckpt_path = model_dir + '/ckpt/best_ckpt/0187-1.09.keras'
 
 # Folder for results
 results_folder = 'messungen'
@@ -44,18 +44,18 @@ if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 
 # Initialize video stream and model processor
-video_index = 0
-mic_index = uma16_index()
+video_index = 2
+device = uma16_index()
 
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
+
+# Switch to turn camera on
 #video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
 video_stream = False
 
 processor = Processor(
-    config_uma, 
-    mic_index,
-    model_config_path, 
+    device,
     results_folder,
     ckpt_path,
     CSV,

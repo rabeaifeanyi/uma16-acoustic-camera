@@ -2,6 +2,7 @@ from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, Arrow, VeeHead, ColorBar, LinearColorMapper # type: ignore
 from bokeh.palettes import Viridis256 # type: ignore
 from bokeh.transform import linear_cmap # type: ignore
+import cv2
 from .config_ui import *
 import numpy as np
 
@@ -11,9 +12,10 @@ import numpy as np
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, camera_on, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, camera_on, camera_index=2, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
         
         self.camera_on = camera_on
+        self.camera_index = camera_index
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -31,6 +33,9 @@ class AcousticCameraPlot:
         # Data source for the camera image
         if camera_on:
             self.camera_cds = ColumnDataSource({'image_data': []})
+            
+        else:
+            self.snapshot_cds = ColumnDataSource({'snap_data': []})
         
         # Data source for the microphone positions
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
@@ -76,6 +81,15 @@ class AcousticCameraPlot:
         ymax = Z * np.tan(self.alpha_y / 2)
         ymin = -ymax
         return xmin, xmax, ymin, ymax
+    
+    def take_snapshot(self):
+        cap = cv2.VideoCapture(self.camera_index)
+        cap.set(3,640)
+        cap.set(4,480)
+        
+        ret, frame = cap.read()
+        cap.release()
+        return frame
 
     def update_plot_model(self, model_data):
         self.model_renderer.visible = True
@@ -175,8 +189,8 @@ class AcousticCameraPlot:
         fig = self._create_base_fig()
         
         # TODO je nach dem wie Kalbiriert wurde
-        bar_low = 65 #P1
-        bar_high = 85
+        bar_low = 0.0001 #P1
+        bar_high = 0.01
 
         color_mapper = linear_cmap('s', Viridis256, bar_low, bar_high)
 
