@@ -38,8 +38,11 @@ class Processor:
         # Frequencies for the third octave bands
         self.third_octave_frequencies = [250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000]
         
-        # Lock for the frequency
+        # Locks for adjustable parameters
         self.frequency_lock = Lock()
+        self.csm_block_size_lock = Lock()
+        self.min_queue_size_lock = Lock()
+        self.z = Lock()
         
         # Lock for the results
         self.result_lock = Lock()
@@ -497,6 +500,21 @@ class Processor:
         #self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
         print(f"Frequency updated to {self.frequency} Hz.")
         self.f_ind = self.fft.fftfreq()-  self.frequency
+        
+    def update_csm_block_size(self, block_size):
+        """ Update the block size for the CSM
+        """
+        with self.csm_block_size_lock:
+            self.csm_block_size = block_size
+            self.csm_shape = (int(block_size/2+1), 16, 16)
+        print(f"CSM block size updated to {self.csm_block_size}.")
+        
+    def update_min_queue_size(self, min_queue_size):
+        """ Update the minimum queue size for the CSM
+        """
+        with self.min_queue_size_lock:
+            self.min_queue_size = min_queue_size
+        print(f"Minimum queue size updated to {self.min_queue_size}.")   
     
     def get_uma_data(self):
         """  Returns the time data of the microphone array      

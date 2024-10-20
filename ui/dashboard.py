@@ -1,4 +1,5 @@
 import threading
+import datetime
 from bokeh.layouts import column, layout, row
 from bokeh.models import Div, CheckboxGroup, RadioButtonGroup, TextInput, Button # type: ignore
 from bokeh.plotting import curdoc
@@ -28,7 +29,7 @@ class Dashboard:
         self.beamforming_thread = None
         
         # Method for processing the data, 0 is Deep Learning, 1 is Beamforming
-        self.method = 1 # Default is Deep Learning
+        self.method = 0 # Default is Deep Learning
         
         # Setting up the acoustic camera plot
         self.acoustic_camera_plot = AcousticCameraPlot(
@@ -55,11 +56,25 @@ class Dashboard:
         # Frequency input field
         self.f_input = TextInput(value=str(self.processor.frequency), title="Frequency (Hz)")
 
+        # CSM Block size input field
+        self.csm_block_size_input = TextInput(value=str(self.processor.csm_block_size), title="CSM Block Size")
+        
+        # CSM minimum queue size input field
+        self.min_queue_size_input = TextInput(value=str(self.processor.min_queue_size), title="Minimum Queue Size")
+        
+        # Threshold input field
+        self.threshold_input = TextInput(value=str(self.acoustic_camera_plot.threshold), title="Threshold")
+        
+        # Cluster distance input field
+        self.cluster_distance_input = TextInput(value=str(self.acoustic_camera_plot.min_cluster_distance), title="Cluster Distance")
+        
         # Overflow status text
         self.overflow_status = Div(text="Overflow Status: Unknown", width=300, height=30)
         
+        self.cluster_results = RadioButtonGroup(labels=[" ", "Cluster Results"], active=self.acoustic_camera_plot.cluster) 
+        
         # Switching between Deep Learning and Beamforming
-        self.method_selector = RadioButtonGroup(labels=["Deep Learning", "Beamforming"], active=1)  # 0 is "Deep Learning" as default
+        self.method_selector = RadioButtonGroup(labels=["Deep Learning", "Beamforming"], active=self.method)  # 0 is "Deep Learning" as default
         
         # Callbacks
         self.camera_view_callback = None
@@ -116,9 +131,14 @@ class Dashboard:
         
         # Grouping relevant UI elements into a single container (sidebar_section)
         self.sidebar_section = column(
-            self.f_input,
-            self.checkbox_group,
             self.method_selector,
+            self.cluster_results,
+            self.cluster_distance_input,
+            self.f_input,
+            self.csm_block_size_input,
+            self.min_queue_size_input,
+            self.threshold_input,
+            self.checkbox_group,
             self.measurement_button,
             self.overflow_status
         )
@@ -154,6 +174,7 @@ class Dashboard:
         self.checkbox_group.on_change("active", self.toggle_visibility)
         mode_selector.on_change('active', self.toggle_plot_visibility)
         self.method_selector.on_change('active', self.toggle_method)
+        self.cluster_results.on_change('active', self.toggle_cluster)
 
     def setup_callbacks(self):
         """Setup the callbacks for the dashboard
@@ -161,8 +182,20 @@ class Dashboard:
         # Callbacks for the frequency input field
         self.f_input.on_change("value", self.update_frequency)
         
+        # Callbacks for the CSM Block size input field
+        self.csm_block_size_input.on_change("value", self.update_csm_block_size)
+        
+        # Callbacks for the minimum number of CSMs in the buffer
+        self.min_queue_size_input.on_change("value", self.update_min_queue_size)
+        
+        # Callbacks for the threshold input field
+        self.threshold_input.on_change("value", self.update_threshold)
+        
+        # Callbacks for the min cluster distance input field
+        self.cluster_distance_input.on_change("value", self.update_min_cluster_distance)
+        
         # Callbacks for the measurement button
-        self.measurement_button.on_click(self.toggle_measurement)
+        self.measurement_button.on_click(self.start_measurement)
 
         # Start the acoustic camera plot
         self.start_acoustic_camera_plot()
@@ -194,6 +227,10 @@ class Dashboard:
             self.beamforming_callback = curdoc().add_periodic_callback(
                 self.update_beamforming, self.beamforming_update_interval)
             
+    def toggle_cluster(self, attr, old, new):
+        """Callback for the cluster results selector"""
+        self.acoustic_camera_plot.cluster = new
+            
     def stop_measurement(self):
         """Stop the current measurement"""
         if self.model_thread is not None:
@@ -203,10 +240,11 @@ class Dashboard:
             self.stop_beamforming()
             self.measurement_button.label = start_text
                 
-    def toggle_measurement(self):
+    def start_measurement(self):
         """Callback für den Messungs-Button, startet oder stoppt die Messung"""
         if self.method == 0:
             if self.model_thread is None:
+                self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
                 self.start_model()
                 self.measurement_button.label = stop_text
             else:
@@ -214,6 +252,7 @@ class Dashboard:
                 self.measurement_button.label = start_text
         elif self.method == 1:
             if self.beamforming_thread is None:
+                self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
                 self.start_beamforming()
                 self.measurement_button.label = stop_text
             else:
@@ -228,7 +267,43 @@ class Dashboard:
             self.processor.update_frequency(f)
         except ValueError:
             pass
-    
+        
+    def update_csm_block_size(self, attr, old, new):
+        """Callback for the csmblocksize input field
+        """
+        try:
+            s = float(new)
+            self.processor.update_csm_block_size(s)
+        except ValueError:
+            pass
+        
+    def update_min_queue_size(self, attr, old, new):
+        """Callback for minqueuesize input field
+        """
+        try:
+            s = float(new)
+            self.processor.update_min_queue_size(s)
+        except ValueError:
+            pass
+        
+    def update_threshold(self, attr, old, new):
+        """Callback for the threshold input field
+        """
+        try:
+            t = float(new)
+            self.acoustic_camera_plot.update_threshold(t)
+        except ValueError:
+            pass
+        
+    def update_min_cluster_distance(self, attr, old, new):
+        """Callback for the min cluster distance input field
+        """
+        try:
+            d = float(new)
+            self.acoustic_camera_plot.update_min_cluster_distance(d)
+        except ValueError:
+            pass
+        
     def update_overflow_status(self):
         """Update the overflow status text
         """
@@ -238,8 +313,16 @@ class Dashboard:
         
     def update_snapshot(self):
         self.video_stream.take_snapshot()
+        filename = self._get_result_filenames()
+        self.video_stream.save_snapshot(filename)
         snapshot = self.video_stream.img    
         self.acoustic_camera_plot.update_camera_image(snapshot)
+        
+    def _get_result_filenames(self):
+        """ Get the filenames for the results
+        """
+        current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        return self.processor.results_folder + f'/{current_time}.png'
 
     # Acoustic Camera Plot
     def start_acoustic_camera_plot(self):
@@ -267,10 +350,7 @@ class Dashboard:
         if self.camera_on:
             if self.camera_view_callback is None:
                 self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
-                
-        if not self.camera_on:
-            self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
-        
+
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
         
@@ -340,7 +420,6 @@ class Dashboard:
     def update_camera_view(self):
         self.video_stream.get_frame()
         self.acoustic_camera_plot.update_camera_image(self.video_stream.img)
-        
 
     # Deep Learning
     def start_model(self):

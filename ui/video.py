@@ -76,3 +76,8 @@ class VideoStream:
         self.stop()
         print("Snapshot taken.")
         
+    def save_snapshot(self, filename):
+        """Save the snapshot to a file."""
+        cv2.imwrite(filename, self.view)
+        print("Snapshot saved.")
+        

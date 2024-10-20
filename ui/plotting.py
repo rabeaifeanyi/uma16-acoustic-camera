@@ -4,14 +4,19 @@ from bokeh.palettes import Magma, Viridis256 # type: ignore
 from bokeh.transform import linear_cmap # type: ignore
 from .config_ui import *
 import numpy as np
+from scipy.spatial.distance import pdist, squareform # type: ignore
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold, scale_factor=1, Z=3.0, min_distance=1):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
         self.frame_height = int(frame_height * scale_factor)
+        
+        self.min_cluster_distance = 0
+        
+        self.cluster = 0
         
         self.Z = Z
         self.min_distance = min_distance
@@ -64,6 +69,12 @@ class AcousticCameraPlot:
         self.fig.x_range.end = self.xmax
         self.fig.y_range.start = self.ymin
         self.fig.y_range.end = self.ymax
+        
+    def update_threshold(self, threshold):
+        self.threshold = threshold
+        
+    def update_cluster_distance(self, distance):
+        self.min_cluster_distance = distance
 
     def calculate_view_range(self, Z):
         xmax = Z * np.tan(self.alpha_x / 2)
@@ -94,8 +105,34 @@ class AcousticCameraPlot:
         mask = s >= self.threshold
         
         x, y, z, s, sizes = x[mask], y[mask], z[mask], s[mask], sizes[mask]
+        
+        if self.cluster:
+            x, y, z = self.cluster_points(x, y, z)
 
         self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
+        
+    def cluster_points(self, x_list, y_list, z_list):
+        points = np.array(list(zip(x_list, y_list, z_list)))
+        dist_matrix = squareform(pdist(points))
+        close_points = dist_matrix < self.min_cluster_distance
+        
+        groups = []
+        visited = np.zeros(len(points), dtype=bool)
+
+        for i in range(len(points)):
+            if not visited[i]:
+                group_indices = np.where(close_points[i])[0]
+                group_points = points[group_indices]
+                group_mean = np.mean(group_points, axis=0)
+                groups.append(group_mean)
+                visited[group_indices] = True
+
+        groups = np.array(groups)
+        x_result = groups[:, 0]
+        y_result = groups[:, 1]
+        z_result = groups[:, 2]
+        
+        return x_result, y_result, z_result 
     
     def update_plot_beamforming(self, results):
         self.model_renderer.visible = False
