@@ -33,6 +33,8 @@ class VideoStream:
                                                                       (self.frame_width, self.frame_height),
                                                                       1, # alpha
                                                                       (self.frame_width, self.frame_height))
+            print(f"Camera matrix calculated, shape: {self.camera_matrix.shape}.")
+
         
         except FileNotFoundError:
             self.camera_matrix = None
@@ -57,11 +59,10 @@ class VideoStream:
         if rval:
             frame = cv2.resize(frame, (self.frame_width, self.frame_height))
             
-            #if self.undistort and self.camera_matrix:
-                #frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
+            if self.undistort:
+                print("Undistorting frame.")
+                frame = cv2.undistort(frame, self.camera_matrix, self.dist_coeffs, None, self.new_camera_matrix)
 
-            #img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
-            #view = img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
             self.view[:, :, 0] = frame[:, :, 2]
             self.view[:, :, 2] = frame[:, :, 0]
             self.view[:, :, 1] = frame[:, :, 1]

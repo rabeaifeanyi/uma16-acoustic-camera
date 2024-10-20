@@ -11,7 +11,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
-UNDISTORT = False
+UNDISTORT = True
 Z = 3 #m
 MIN_DISTANCE = 1 #m
 THRESHOLD = 0.001 
@@ -35,10 +35,6 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-# model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51'
-# model_config_path = model_dir + '/config.toml'
-# ckpt_path = model_dir + '/ckpt/best_ckpt/0187-1.09.keras'
-
 model_name = "EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51"
 model_dir = Path(f"/home/rabea/Documents/Bachelorarbeit/models/{model_name}")
 config_path = model_dir / 'config.toml'
