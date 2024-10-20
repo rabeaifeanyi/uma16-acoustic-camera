@@ -4,8 +4,10 @@ import os
 from bokeh.plotting import curdoc # type: ignore
 from ui import Dashboard, VideoStream
 from data_processing import Processor
+from pathlib import Path
 from config import ConfigUMA, uma16_index, calculate_alphas
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
@@ -17,6 +19,7 @@ DESIRED_WIDTH = 640
 DESIRED_HEIGHT = 480
 FPS = 20
 SCALE_FACTOR = 1.5
+CAMERA_ON = False
 
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
@@ -32,9 +35,18 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51'
-model_config_path = model_dir + '/config.toml'
-ckpt_path = model_dir + '/ckpt/best_ckpt/0187-1.09.keras'
+# model_dir = '/home/rabea/Documents/Bachelorarbeit/models/EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51'
+# model_config_path = model_dir + '/config.toml'
+# ckpt_path = model_dir + '/ckpt/best_ckpt/0187-1.09.keras'
+
+model_name = "EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51"
+model_dir = Path(f"/home/rabea/Documents/Bachelorarbeit/models/{model_name}")
+config_path = model_dir / 'config.toml'
+ckpt_path = model_dir / 'ckpt' / 'best_ckpt'
+ckpt_files = ckpt_path.glob('*.keras')
+ckpt_name = sorted(ckpt_files, key=lambda x: int(x.stem.split('-')[0]))[-1].name
+ckpt_path = model_dir / 'ckpt' / 'best_ckpt'/ ckpt_name
+print(f"Using checkpoint: {ckpt_path}")
 
 # Folder for results
 results_folder = 'messungen'
@@ -50,9 +62,7 @@ device = uma16_index()
 # Initialize video stream and model processor
 config_uma = ConfigUMA()
 
-# Switch to turn camera on
-#video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
-video_stream = False
+video_stream = VideoStream(video_index, undistort=UNDISTORT, fps=FPS, desired_width=DESIRED_WIDTH, desired_height=DESIRED_HEIGHT)
 
 processor = Processor(
     device,
@@ -73,7 +83,8 @@ dashboard = Dashboard(
     alphas,
     SCALE_FACTOR,
     Z,
-    MIN_DISTANCE)
+    MIN_DISTANCE,
+    CAMERA_ON)
 
 doc = curdoc()
 doc.add_root(dashboard.get_layout())

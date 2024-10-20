@@ -1,3 +1,6 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 import numpy as np
 import tensorflow as tf  # type: ignore
 import acoular as ac  # type: ignore
@@ -12,14 +15,10 @@ import queue  # Wichtig für Ausnahmen
 from .SamplesProcessor import LastInOut
 from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
-# Problems
-# 2: MaskedSpectraOut not yet implemented #P2
-# 3: Beamforming not implemented #P3
-# 0: All sorts of small problems #P0
 
 class Processor:
     def __init__(self, device, results_folder, ckpt_path, save_csv, save_h5, 
-                 csm_buffer_size=250, beamforming_buffer_size=150, csm_block_size=256):
+                 csm_block_size=256, csm_min_queue_size=60, csm_buffer_size=250):
         """ Processor for the UMA16 Acoustic Camera
         """
         # Microphone Index of microphone-array in local system
@@ -27,9 +26,6 @@ class Processor:
         micgeom_path = Path(ac.__file__).parent / 'xml' / 'minidsp_uma-16_mirrored.xml'
         self.mics = ac.MicGeom(from_file=micgeom_path)
         
-        # Configuration of the UMA
-        #self.uma_config = uma_config
-
         x_min, x_max, y_min, y_max = -1.5, 1.5, -1.5, 1.5
         z = 1.25
         increment = 0.1
@@ -37,7 +33,7 @@ class Processor:
         self.grid_dim = (int((x_max - x_min) / increment + 1), int((y_max - y_min) / increment + 1))
         
         # Default target frequency
-        self.frequency = 2000.0
+        self.frequency = 4000.0
         
         # Frequencies for the third octave bands
         self.third_octave_frequencies = [250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000]
@@ -60,11 +56,13 @@ class Processor:
         # Size of one block in CSM
         self.csm_block_size = csm_block_size
         
+        # Minimum size of the CSM queue
+        self.min_queue_size = csm_min_queue_size
+        
+        self.csm_num = 1
+        
         # Shape of the CSM
         self.csm_shape = (int(csm_block_size/2+1), 16, 16)
-        
-        # Size of the buffer in beamforming queue
-        self.beamforming_buffer_size = beamforming_buffer_size
         
         # Results dictionary that will be updated
         self.results = {
@@ -74,7 +72,9 @@ class Processor:
             's': [0]
         }
         
-        self.beamforming_results = np.zeros((16, 16))
+        base_beamforming_result = np.zeros(self.grid_dim).tolist()
+        
+        self.beamforming_results = {'results' : base_beamforming_result}
         
         # Filename for the results
         self.results_folder = results_folder
@@ -85,6 +85,11 @@ class Processor:
         
         # For testing purposes only: data of the first channel can be plotted
         self._generators_for_data() 
+        self.data_filename, self.results_filename = self._get_result_filenames('model')
+        
+        # Call functions to setup the model
+        self._generators_for_model()
+        
         
     def start_model(self):
         """ Start the model processing
@@ -171,10 +176,10 @@ class Processor:
         # Problem: This means, we have to restart the model setup, when the frequency is updated
         #          Maybe this is a good thing?
         # Filter the frequencies
-        # self.masked = ac.MaskedSpectraOut(source=self.csm_gen, ...) #P2
+        # self.masked = ac.MaskedSpectraOut(source=self.csm_gen, ...)
 
         # Index of the target frequency -> not necessary if MaskedSpectraOut is used
-        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency) #P2
+        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
         
     def _save_time_samples(self):
         """ Save the time samples to a H5 file """
@@ -202,7 +207,6 @@ class Processor:
         # Load the model
         self.model = tf.keras.models.load_model(self.ckpt_path)
         
-        
     def _model_threads(self):
         """ Threads for the model process
         """
@@ -223,7 +227,7 @@ class Processor:
         while not self.model_stop_event.is_set():
             
             # Yield the next CSM data block
-            data = next(self.csm_gen.result(num=1))
+            data = next(self.csm_gen.result(num=self.csm_num))
             
             while not self.model_stop_event.is_set():
                 try:
@@ -251,7 +255,10 @@ class Processor:
         while not self.model_stop_event.is_set():
             csm_list = []
 
-            # Wait for the next CSM data block
+            if self.csm_queue.qsize() < self.min_queue_size:
+                time.sleep(0.1)
+                continue   
+                
             try:
                 data = self.csm_queue.get(timeout=0.1)
                 csm_list.append(data)
@@ -266,44 +273,39 @@ class Processor:
                     csm_list.append(data)
                 except queue.Empty:
                     break  # No more data available
+                
+            # Calculate the mean of the CSM data
+            csm_mean = np.mean(csm_list, axis=0)
+            #np.save("csm.npy", csm_mean)
             
-            # If data is available, process it    
-            if len(csm_list) >= 1:
-                
-                # Calculate the mean of the CSM data
-                csm_mean = np.mean(csm_list, axis=0)
-                
-                # Preprocess the CSM data
-                eigmode, csm_norm = self._preprocess_csm(csm_mean)
-                
-                # Predict the strength and location
-                strength_pred, loc_pred, noise_pred = self.model.predict(eigmode, verbose=0)
-                strength_pred = strength_pred.squeeze()
-                strength_pred *= csm_norm
+            # Preprocess the CSM data
+            eigmode, csm_norm = self._preprocess_csm(csm_mean)
+            #np.save("eigmode.npy", eigmode)
+            
+            # Predict the strength and location
+            strength_pred, loc_pred, noise_pred = self.model.predict(eigmode, verbose=0)
+            strength_pred = strength_pred.squeeze()
+            strength_pred *= csm_norm
+            #strength_pred *= np.real(csm_norm)[:,np.newaxis]
+            
+            # TODO Adam ändert das noch
+            #loc_pred = self._recover_loc(loc_pred.squeeze(), aperture=self.mics.aperture) 
+            loc_pred -= 0.5
+            loc_pred *= 2.0
+            loc_pred = loc_pred.squeeze()
+            loc_pred = loc_pred.squeeze()
+            # Update the results
+            with self.result_lock:
+                self.results = {
+                    'x': loc_pred[0].tolist(),
+                    'y': loc_pred[1].tolist(),
+                    'z': loc_pred[2].tolist(),
+                    's': strength_pred.tolist()
+                }
 
-                # Recover the location
-                #loc_pred = self.pipeline.recover_loc(loc_pred.squeeze(), aperture=self.uma_config.mics.aperture) #TODO
-                loc_pred = self.recover_loc(loc_pred.squeeze(), aperture=self.mics.aperture) 
-                
-                # TODO Adam ändert das noch
-                # aparture bleibe
-                # norm loc 2
-                
-                # Update the results
-                with self.result_lock:
-                    self.results = {
-                        'x': loc_pred[0].tolist(),
-                        'y': loc_pred[1].tolist(),
-                        'z': loc_pred[2].tolist(),
-                        's': strength_pred.tolist()
-                    }
-                    print(self.results)
-                    
-                self._save_results()
-            time.sleep(0.5)
+            self._save_results()
     
-    def recover_loc(self, loc, aperture, shift_loc=True, norm_loc=2):
-        
+    def _recover_loc(self, loc, aperture, shift_loc=True, norm_loc=2):
         if shift_loc:
             if isinstance(shift_loc, float):
                 loc = loc - shift_loc
@@ -320,9 +322,9 @@ class Processor:
         """ Preprocess the CSM data
         """
         # will not be necessary, as soon as MsskedSpectraInOut is implemented
-        csm = np.real(data).reshape(self.csm_shape) #P2
+        csm = np.real(data).reshape(self.csm_shape)
         #csm = np.real(data).reshape(len(data)/(16*16), 16, 16)
-        csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels) #P2
+        csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels)
         
         # at this point, the CSM is in [Volt^2] since the microphone channel data
         # is a voltage strea -> we need to convert it to squared sound pressure values [Pa^2]
@@ -414,12 +416,11 @@ class Processor:
         """ Setup the generators for the beamforming process
         """
         print("Setting up generators for beamforming.")
-
-        
         
         # 16-Kanal-Mikrofon-Array-Daten-Generator
         self.dev = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
         
+        # Turn Volt to Pascal 
         self.source_mixer = ac.SourceMixer(sources=[self.dev],weights=np.array([1/0.0016]))
         
         # Sample Splitter
@@ -431,7 +432,6 @@ class Processor:
         # Steering Vector
         steer = ac.SteeringVector(env=ac.Environment(c=343), grid=self.beamforming_grid, mics=self.mics)
         
-        #self.bf = ac.BeamformerTime(source=sample_splitter, steer=steer)
         self.lastOut = LastInOut(source=sample_splitter)
         self.bf = ac.BeamformerTime(source=self.lastOut, steer=steer)
         
@@ -461,12 +461,13 @@ class Processor:
                 res = ac.L_p(next(gen))
                 res = res.reshape(self.grid_dim)
                 count += 1
-                #with self.beamforming_result_lock:
-                self.beamforming_results = res
+                with self.beamforming_result_lock:
+                    self.beamforming_results['results'] = res.tolist()  
                 
             except StopIteration:
                 print("Generator has been stopped.")
                 break
+            
             except Exception as e:
                 print(f"Exception in _beamforming_generator: {e}")
                 break
@@ -493,8 +494,9 @@ class Processor:
         """
         with self.frequency_lock:
             self.frequency = frequency
-        self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
+        #self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
         print(f"Frequency updated to {self.frequency} Hz.")
+        self.f_ind = self.fft.fftfreq()-  self.frequency
     
     def get_uma_data(self):
         """  Returns the time data of the microphone array      
@@ -535,7 +537,6 @@ class Processor:
         """ Save the results to a CSV and H5 file
         """
         timestamp = self._get_current_timestamp()
-        
         current_results = self.get_results()
         
         with self.frequency_lock:

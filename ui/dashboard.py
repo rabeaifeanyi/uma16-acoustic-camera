@@ -9,20 +9,16 @@ from .config_ui import *
 class Dashboard:
     def __init__(self, video_stream, processor, mic_array_config, 
                  estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, 
-                 threshold, alphas, scale_factor, z, min_distance):
+                 threshold, alphas, scale_factor, z, min_distance, camera_on=True):
 
         # Angles of the camera view
         self.alphas = alphas
         
         # Video stream object
         self.video_stream = video_stream
-        self.camera_on = True
+        self.camera_on = camera_on
         
-        if self.video_stream:
-            self.frame_width, self.frame_height = video_stream.frame_width, video_stream.frame_height
-        else:
-            self.frame_width, self.frame_height = 640, 480
-            self.camera_on = False
+        self.frame_width, self.frame_height = video_stream.frame_width, video_stream.frame_height
 
         # Data Processor object, contains model and beamforming
         self.processor = processor
@@ -32,7 +28,7 @@ class Dashboard:
         self.beamforming_thread = None
         
         # Method for processing the data, 0 is Deep Learning, 1 is Beamforming
-        self.method = 0 # Default is Deep Learning
+        self.method = 1 # Default is Deep Learning
         
         # Setting up the acoustic camera plot
         self.acoustic_camera_plot = AcousticCameraPlot(
@@ -40,7 +36,6 @@ class Dashboard:
                                         frame_height=self.frame_height,
                                         mic_positions=mic_array_config.mic_positions(shifted=False),
                                         alphas=self.alphas,
-                                        camera_on=self.camera_on,
                                         threshold=threshold,
                                         Z=z,
                                         scale_factor=scale_factor,
@@ -64,7 +59,7 @@ class Dashboard:
         self.overflow_status = Div(text="Overflow Status: Unknown", width=300, height=30)
         
         # Switching between Deep Learning and Beamforming
-        self.method_selector = RadioButtonGroup(labels=["Deep Learning", "Beamforming"], active=0)  # 0 is "Deep Learning" as default
+        self.method_selector = RadioButtonGroup(labels=["Deep Learning", "Beamforming"], active=1)  # 0 is "Deep Learning" as default
         
         # Callbacks
         self.camera_view_callback = None
@@ -119,15 +114,12 @@ class Dashboard:
         # Possible solution: Add a check if model_thread is None before stopping
         self.measurement_button = Button(label="Start Messung")
         
-        self.checkbox_use_camera = CheckboxGroup(labels=["use camera"], active=[])
-        
         # Grouping relevant UI elements into a single container (sidebar_section)
         self.sidebar_section = column(
             self.f_input,
             self.checkbox_group,
             self.method_selector,
             self.measurement_button,
-            self.checkbox_use_camera,
             self.overflow_status
         )
         
@@ -185,6 +177,7 @@ class Dashboard:
         if self.estimation_callback is not None:
             curdoc().remove_periodic_callback(self.estimation_callback)
             self.estimation_callback = None
+            
         if self.beamforming_callback is not None:
             curdoc().remove_periodic_callback(self.beamforming_callback)
             self.beamforming_callback = None
@@ -209,7 +202,6 @@ class Dashboard:
         if self.beamforming_thread is not None:
             self.stop_beamforming()
             self.measurement_button.label = start_text
-
                 
     def toggle_measurement(self):
         """Callback für den Messungs-Button, startet oder stoppt die Messung"""
@@ -228,7 +220,6 @@ class Dashboard:
                 self.stop_beamforming()
                 self.measurement_button.label = start_text
 
-        
     def update_frequency(self, attr, old, new):
         """Callback for the frequency input field
         """
@@ -244,12 +235,21 @@ class Dashboard:
         overflow = self.processor.dev.overflow
         status_text = f"Overflow Status: {overflow}"
         self.overflow_status.text = status_text
+        
+    def update_snapshot(self):
+        self.video_stream.take_snapshot()
+        snapshot = self.video_stream.img    
+        self.acoustic_camera_plot.update_camera_image(snapshot)
 
     # Acoustic Camera Plot
     def start_acoustic_camera_plot(self):
         self.stop_stream_plot()
-        if self.video_stream:
-            self.video_stream.start()
+        
+        if self.camera_on:
+            self.video_stream.start()  
+            
+        if not self.camera_on:
+            self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
         
         # Deep Learning
         if self.method == 0:
@@ -262,15 +262,19 @@ class Dashboard:
             self.stop_model()
             self.acoustic_camera_plot.model_renderer.visible = False
             self.acoustic_camera_plot.beamforming_renderer.visible = True
+            print(self.acoustic_camera_plot.beamforming_renderer.visible)
 
-        if self.video_stream:
+        if self.camera_on:
             if self.camera_view_callback is None:
                 self.camera_view_callback = curdoc().add_periodic_callback(self.update_camera_view, self.camera_update_interval)
+                
+        if not self.camera_on:
+            self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
         
     def stop_acoustic_camera_plot(self):
         """Stop periodic callbacks for the acoustic camera plot"""
         
-        if self.video_stream:
+        if self.camera_on:
             if self.camera_view_callback is not None:
                 curdoc().remove_periodic_callback(self.camera_view_callback)
                 self.camera_view_callback = None
@@ -284,7 +288,7 @@ class Dashboard:
             self.beamforming_callback = None
             
         self.stop_measurement()
-        if self.video_stream:
+        if self.camera_on:
             self.video_stream.stop()
             
     # Stream Plot
@@ -336,6 +340,7 @@ class Dashboard:
     def update_camera_view(self):
         self.video_stream.get_frame()
         self.acoustic_camera_plot.update_camera_image(self.video_stream.img)
+        
 
     # Deep Learning
     def start_model(self):
@@ -380,6 +385,7 @@ class Dashboard:
         if self.beamforming_thread is not None:
             print("TRYING TO STOP!")
             self.beamforming_thread.join()
+            print("STOPPED!")
             self.beamforming_thread = None
             
         if self.beamforming_callback is not None:

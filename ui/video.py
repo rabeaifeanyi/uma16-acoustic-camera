@@ -4,7 +4,6 @@ from config import load_calibration_data
 
 class VideoStream:
     """Class for reading video frames from a video capture object."""
-
     
     def __init__(self, camera_index, fps=15, desired_width=640, desired_height=480, undistort=False):
         """Initialize the video stream with the given frame dimensions and camera index."""
@@ -24,7 +23,7 @@ class VideoStream:
         self.undistort = undistort
         
         self.img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
-        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::]
+        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
         
         # Load camera calibration data
         try:
@@ -34,6 +33,7 @@ class VideoStream:
                                                                       (self.frame_width, self.frame_height),
                                                                       1, # alpha
                                                                       (self.frame_width, self.frame_height))
+        
         except FileNotFoundError:
             self.camera_matrix = None
             self.dist_coeffs = None
@@ -66,5 +66,13 @@ class VideoStream:
             self.view[:, :, 2] = frame[:, :, 0]
             self.view[:, :, 1] = frame[:, :, 1]
             self.view[:, :, 3] = 255 
-
-
+            
+    def take_snapshot(self):
+        """Take a snapshot from the video stream."""
+        print("Taking snapshot.")
+        self.start()   
+        self.get_frame()
+        self.get_frame()
+        self.stop()
+        print("Snapshot taken.")
+        

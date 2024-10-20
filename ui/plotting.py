@@ -1,21 +1,13 @@
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, Arrow, VeeHead, ColorBar, LinearColorMapper # type: ignore
-from bokeh.palettes import Viridis256 # type: ignore
+from bokeh.palettes import Magma, Viridis256 # type: ignore
 from bokeh.transform import linear_cmap # type: ignore
-import cv2
 from .config_ui import *
 import numpy as np
 
-# Probleme
-# 1: Wie werden Datan kalibriert? Stärke #P1
-# 2 Camera an und aus #P2
-
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, camera_on, camera_index=2, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
-        
-        self.camera_on = camera_on
-        self.camera_index = camera_index
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold=0, scale_factor=1, Z=3.0, min_distance=1):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -31,12 +23,8 @@ class AcousticCameraPlot:
         self.threshold = threshold
         
         # Data source for the camera image
-        if camera_on:
-            self.camera_cds = ColumnDataSource({'image_data': []})
-            
-        else:
-            self.snapshot_cds = ColumnDataSource({'snap_data': []})
-        
+        self.camera_cds = ColumnDataSource({'image_data': []})
+
         # Data source for the microphone positions
         self.mic_cds = ColumnDataSource(data=dict(x=[], y=[]))
         
@@ -65,6 +53,8 @@ class AcousticCameraPlot:
         self.dx = self.x_max - self.x_min
         self.dy = self.y_max - self.y_min
         
+        self.bar_low, self.bar_high = 0.0001, 0.01
+        
         # Create the plot
         self.fig = self._create_plot()
 
@@ -81,15 +71,6 @@ class AcousticCameraPlot:
         ymax = Z * np.tan(self.alpha_y / 2)
         ymin = -ymax
         return xmin, xmax, ymin, ymax
-    
-    def take_snapshot(self):
-        cap = cv2.VideoCapture(self.camera_index)
-        cap.set(3,640)
-        cap.set(4,480)
-        
-        ret, frame = cap.read()
-        cap.release()
-        return frame
 
     def update_plot_model(self, model_data):
         self.model_renderer.visible = True
@@ -116,8 +97,10 @@ class AcousticCameraPlot:
 
         self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
     
-    def update_plot_beamforming(self, beamforming_data):
-        self.beamforming_cds.data['beamformer_data'] = [beamforming_data]
+    def update_plot_beamforming(self, results):
+        self.model_renderer.visible = False
+        self.beamforming_renderer.visible = True
+        self.beamforming_cds.data['beamformer_data'] = results['results']
 
     def update_camera_image(self, img):
         self.camera_cds.data['image_data'] = [img]
@@ -140,15 +123,14 @@ class AcousticCameraPlot:
                      y_range=(self.ymin, self.ymax),
                      output_backend='webgl',
                      aspect_ratio=1)
-        
-        if self.camera_on:
-            fig.image_rgba(image='image_data', 
-                        x=self.xmin, 
-                        y=self.ymin, 
-                        dw=(self.xmax-self.xmin), 
-                        dh=(self.ymax-self.ymin), 
-                        source=self.camera_cds, 
-                        alpha=VIDEOALPHA)
+
+        fig.image_rgba(image='image_data', 
+                    x=self.xmin, 
+                    y=self.ymin, 
+                    dw=(self.xmax-self.xmin), 
+                    dh=(self.ymax-self.ymin), 
+                    source=self.camera_cds, 
+                    alpha=VIDEOALPHA)
         
         self.mic_cds.data = dict(x=self.mic_positions[0], y=self.mic_positions[1])
         
@@ -188,25 +170,21 @@ class AcousticCameraPlot:
     def _create_plot(self):
         fig = self._create_base_fig()
         
-        # TODO je nach dem wie Kalbiriert wurde
-        bar_low = 0.0001 #P1
-        bar_high = 0.01
-
-        color_mapper = linear_cmap('s', Viridis256, bar_low, bar_high)
-
+        self.color_mapper = linear_cmap('s', Viridis256, self.bar_low, self.bar_high)
+        
         # Renderer für Modell-Daten
         self.model_renderer = fig.scatter(
             x='x', 
             y='y',
             marker='circle', 
             size='sizes', 
-            color=color_mapper,
+            color=self.color_mapper,
             alpha=DOTALPHA, 
             source=self.model_cds
         )
-        
-        self.color_mapper = LinearColorMapper(palette=Viridis256, low=0, high=100)
 
+        self.b_color_mapper = LinearColorMapper(palette=Viridis256, low=0, high=100)
+       
         # Renderer für Beamforming-Daten
         self.beamforming_renderer = fig.image(
             image='beamformer_data',
@@ -215,15 +193,13 @@ class AcousticCameraPlot:
             dw=self.dx,
             dh=self.dy,
             source=self.beamforming_cds,
-            color_mapper=self.color_mapper,
+            color_mapper=self.b_color_mapper,
             level='image',
-            alpha=DOTALPHA
+            alpha=0.6
         )
-
-        self.beamforming_renderer.visible = False 
         
         color_bar = ColorBar(
-            color_mapper=color_mapper['transform'], 
+            color_mapper=self.color_mapper['transform'], 
             label_standoff=12, 
             width=8, 
             location=(0, 0),
