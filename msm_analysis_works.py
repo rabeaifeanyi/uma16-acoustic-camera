@@ -9,7 +9,7 @@ FREQ = 4000
 
 #%% Beamforming
 
-filename = "messungen/2024-10-17_14-53-06_model_time_data.h5"
+filename = "uma16_acoustic_camera/messungen/2024-10-21_11-24-17_model_time_data.h5"
 #freq_data=ac.PowerSpectra(time_data=ac.MaskedTimeSamples(name=Path(__file__).parent / filename),window='Hanning', overlap='50%', block_size=128)
 
 freq_data=ac.PowerSpectra(time_data=ac.TimeSamples(name=Path(__file__).parent / filename),window='Hanning', overlap='50%', block_size=128)

@@ -1,6 +1,6 @@
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, Arrow, VeeHead, ColorBar, LinearColorMapper # type: ignore
-from bokeh.palettes import Magma, Viridis256 # type: ignore
+from bokeh.palettes import Magma256, Viridis256, OrRd9, Inferno256# type: ignore
 from bokeh.transform import linear_cmap # type: ignore
 from .config_ui import *
 import numpy as np
@@ -8,7 +8,7 @@ from scipy.spatial.distance import pdist, squareform # type: ignore
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold, scale_factor=1, Z=3.0, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold, scale_factor=1, Z=1.2, min_distance=1):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -45,7 +45,7 @@ class AcousticCameraPlot:
         
         # Point sizes for the model data
         # TODO: sinnvolle Werte finden
-        self.min_point_size, self.max_point_size = 2, 15
+        self.min_point_size, self.max_point_size = 5,20
         
         # Data sources for the model data
         self.model_cds = ColumnDataSource(data=dict(x=[], y=[], z=[], s=[], sizes=[]))
@@ -58,7 +58,7 @@ class AcousticCameraPlot:
         self.dx = self.x_max - self.x_min
         self.dy = self.y_max - self.y_min
         
-        self.bar_low, self.bar_high = 0.0001, 0.01
+        self.bar_low, self.bar_high = 0.00005, 0.01
         
         # Create the plot
         self.fig = self._create_plot()
@@ -73,7 +73,7 @@ class AcousticCameraPlot:
     def update_threshold(self, threshold):
         self.threshold = threshold
         
-    def update_cluster_distance(self, distance):
+    def update_min_cluster_distance(self, distance):
         self.min_cluster_distance = distance
 
     def calculate_view_range(self, Z):
@@ -87,10 +87,11 @@ class AcousticCameraPlot:
         self.model_renderer.visible = True
         self.beamforming_renderer.visible = False
         
-        x = np.array(model_data['x'])
+        x = -np.array(model_data['x'])
         y = np.array(model_data['y'])
         z = np.array(model_data['z'])
         s = np.array(model_data['s'])
+        #print(x,y)
         
         if len(z) > 0:
             z_clipped = np.clip(z, self.min_distance, self.Z)
@@ -106,17 +107,19 @@ class AcousticCameraPlot:
         
         x, y, z, s, sizes = x[mask], y[mask], z[mask], s[mask], sizes[mask]
         
-        if self.cluster:
-            x, y, z = self.cluster_points(x, y, z)
+        if self.cluster and len(x) > 0:
+            x, y, z, s, sizes = self.cluster_points(x, y, z, s, sizes)
 
         self.model_cds.data = dict(x=x, y=y, z=z, s=s, sizes=sizes)
         
-    def cluster_points(self, x_list, y_list, z_list):
+    def cluster_points(self, x_list, y_list, z_list, s_list, sizes_list):
         points = np.array(list(zip(x_list, y_list, z_list)))
         dist_matrix = squareform(pdist(points))
         close_points = dist_matrix < self.min_cluster_distance
         
         groups = []
+        new_strengths = []
+        new_sizes = []
         visited = np.zeros(len(points), dtype=bool)
 
         for i in range(len(points)):
@@ -125,6 +128,10 @@ class AcousticCameraPlot:
                 group_points = points[group_indices]
                 group_mean = np.mean(group_points, axis=0)
                 groups.append(group_mean)
+                group_strength = np.mean(np.array(s_list)[group_indices])
+                group_size = np.mean(np.array(sizes_list)[group_indices])
+                new_strengths.append(group_strength)
+                new_sizes.append(group_size)
                 visited[group_indices] = True
 
         groups = np.array(groups)
@@ -132,7 +139,7 @@ class AcousticCameraPlot:
         y_result = groups[:, 1]
         z_result = groups[:, 2]
         
-        return x_result, y_result, z_result 
+        return x_result, y_result, z_result , new_strengths, new_sizes
     
     def update_plot_beamforming(self, results):
         self.model_renderer.visible = False
@@ -207,7 +214,7 @@ class AcousticCameraPlot:
     def _create_plot(self):
         fig = self._create_base_fig()
         
-        self.color_mapper = linear_cmap('s', Viridis256, self.bar_low, self.bar_high)
+        self.color_mapper = linear_cmap('s', Magma256[::-1], self.bar_low, self.bar_high)
         
         # Renderer für Modell-Daten
         self.model_renderer = fig.scatter(
@@ -220,7 +227,7 @@ class AcousticCameraPlot:
             source=self.model_cds
         )
 
-        self.b_color_mapper = LinearColorMapper(palette=Viridis256, low=0, high=100)
+        self.b_color_mapper = LinearColorMapper(palette=Magma256[::-1], low=0, high=100)
        
         # Renderer für Beamforming-Daten
         self.beamforming_renderer = fig.image(

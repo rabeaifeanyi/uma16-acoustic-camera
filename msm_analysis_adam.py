@@ -9,7 +9,7 @@ FREQ = 4000
 
 #%% Beamforming
 
-filename = "messungen/2024-10-17_14-53-06_model_time_data.h5"
+filename = "messungen/2024-10-21_13-29-38_model_time_data.h5"
 bb = ac.BeamformerBase(
     freq_data=ac.PowerSpectra(
         time_data=ac.MaskedTimeSamples(
@@ -57,11 +57,8 @@ csm = bb.freq_data.csm[:,:,:]
 csm_norm = csm[:,0,0]
 csm = csm / csm_norm[:, np.newaxis, np.newaxis]
 eigmode = model.preprocessing(csm).numpy()
-np.save("csm2.npy", csm)
-vls2, evecs2 = np.linalg.eigh(csm)
-np.save("eigenvektoren2.npy", evecs2)
-np.save("eigenwerte2.npy", vls2)
 
+vls2, evecs2 = np.linalg.eigh(csm)
 
 # make prediction
 strength_pred, loc_pred, noise_pred = model.predict(eigmode)

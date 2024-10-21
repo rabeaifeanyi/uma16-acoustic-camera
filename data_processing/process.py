@@ -288,16 +288,13 @@ class Processor:
             # Predict the strength and location
             strength_pred, loc_pred, noise_pred = self.model.predict(eigmode, verbose=0)
             strength_pred = strength_pred.squeeze()
-            strength_pred *= csm_norm
-            #strength_pred *= np.real(csm_norm)[:,np.newaxis]
-            
-            # TODO Adam ändert das noch
-            #loc_pred = self._recover_loc(loc_pred.squeeze(), aperture=self.mics.aperture) 
+      
+            strength_pred *= np.real(csm_norm)
+            loc_pred = loc_pred.squeeze()
+     
             loc_pred -= 0.5
             loc_pred *= 2.0
-            loc_pred = loc_pred.squeeze()
-            loc_pred = loc_pred.squeeze()
-            # Update the results
+
             with self.result_lock:
                 self.results = {
                     'x': loc_pred[0].tolist(),
@@ -325,8 +322,7 @@ class Processor:
         """ Preprocess the CSM data
         """
         # will not be necessary, as soon as MsskedSpectraInOut is implemented
-        csm = np.real(data).reshape(self.csm_shape)
-        #csm = np.real(data).reshape(len(data)/(16*16), 16, 16)
+        csm = data.reshape(self.csm_shape)
         csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels)
         
         # at this point, the CSM is in [Volt^2] since the microphone channel data
@@ -505,7 +501,7 @@ class Processor:
         """ Update the block size for the CSM
         """
         with self.csm_block_size_lock:
-            self.csm_block_size = block_size
+            self.csm_block_size = int(block_size)
             self.csm_shape = (int(block_size/2+1), 16, 16)
         print(f"CSM block size updated to {self.csm_block_size}.")
         

@@ -23,11 +23,11 @@ class VideoStream:
         self.undistort = undistort
         
         self.img = np.empty((self.frame_height, self.frame_width), dtype=np.uint32)
-        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::-1]
+        self.view = self.img.view(dtype=np.uint8).reshape((self.frame_height, self.frame_width, 4))[::-1, ::]
         
         # Load camera calibration data
         try:
-            self.camera_matrix, self.dist_coeffs, _, _ = load_calibration_data('config/camera_calibration.csv')
+            self.camera_matrix, self.dist_coeffs, _, _ = load_calibration_data('config/new_camera_calibration.csv')
             self.new_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, 
                                                                       self.dist_coeffs, 
                                                                       (self.frame_width, self.frame_height),
@@ -81,4 +81,4 @@ class VideoStream:
         """Save the snapshot to a file."""
         cv2.imwrite(filename, self.view)
         print("Snapshot saved.")
-        
+    

@@ -26,10 +26,10 @@ objectp3d = np.zeros((1, CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
 objectp3d[0, :, :2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
 
 # Extracting path of individual image stored in a given directory
-images = glob.glob('camera_calibration/calibration_img/*.jpg')
+images = glob.glob('camera_calibration/new_calibration_img/*.png')
 
 if not images:
-    print("Keine Bilder gefunden. Bitte überprüfen Sie den Pfad 'camera_calibration/calibration_img/'.")
+    print("Keine Bilder gefunden. Bitte überprüfen Sie den Pfad 'camera_calibration/new_calibration_img/'.")
     exit()
 
 for filename in images: 
@@ -54,7 +54,7 @@ cv2.destroyAllWindows()
 ret, matrix, distortion, r_vecs, t_vecs = cv2.calibrateCamera(threedpoints, twodpoints, grayColor.shape[::-1], None, None) # type: ignore
 
 # Write results to a CSV file
-with open('config/camera_calibration.csv', 'w', newline='') as file:
+with open('config/new_camera_calibration.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["Camera Matrix"] + matrix.flatten().tolist())
     writer.writerow(["Distortion Coefficients"] + distortion.flatten().tolist())

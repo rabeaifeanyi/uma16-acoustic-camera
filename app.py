@@ -12,7 +12,7 @@ ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = True
-Z = 3 #m
+Z = 1.27 #m
 MIN_DISTANCE = 1 #m
 THRESHOLD = 0.001 
 DESIRED_WIDTH = 640
