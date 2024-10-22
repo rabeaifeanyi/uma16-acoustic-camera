@@ -12,21 +12,21 @@ ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = True
-Z = 1.27 #m
+Z = 0.97 #m
 MIN_DISTANCE = 1 #m
-THRESHOLD = 0.001 
+THRESHOLD = 60 
 DESIRED_WIDTH = 640
 DESIRED_HEIGHT = 480
 FPS = 20
-SCALE_FACTOR = 1.5
+SCALE_FACTOR = 1.3
 CAMERA_ON = False
 
 DX, DZ = 143, 58 #m # TODO genauer Messen aber auch Alternativberechnung implementieren
 alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel überprüfen
 
 # Configuration for saving results
-CSV = False
-H5 = True
+CSV = True
+H5 = False
 
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 100
@@ -65,7 +65,8 @@ processor = Processor(
     results_folder,
     ckpt_path,
     CSV,
-    H5)
+    H5,
+    Z)
 
 dashboard = Dashboard(
     video_stream, 

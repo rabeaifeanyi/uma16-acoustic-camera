@@ -17,8 +17,8 @@ from .sd_generator import SoundDeviceSamplesGeneratorWithPrecision
 
 
 class Processor:
-    def __init__(self, device, results_folder, ckpt_path, save_csv, save_h5, 
-                 csm_block_size=256, csm_min_queue_size=60, csm_buffer_size=250):
+    def __init__(self, device, results_folder, ckpt_path, save_csv, save_h5, z,
+                 csm_block_size=256, csm_min_queue_size=60, csm_buffer_size=1000):
         """ Processor for the UMA16 Acoustic Camera
         """
         # Microphone Index of microphone-array in local system
@@ -27,10 +27,14 @@ class Processor:
         self.mics = ac.MicGeom(from_file=micgeom_path)
         
         x_min, x_max, y_min, y_max = -1.5, 1.5, -1.5, 1.5
-        z = 1.25
-        increment = 0.1
+
+        self.x_min, self.y_min = x_min, y_min
+        z = z
+        increment = 0.05
         self.beamforming_grid = ac.RectGrid(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, z=z, increment=increment)
         self.grid_dim = (int((x_max - x_min) / increment + 1), int((y_max - y_min) / increment + 1))
+        self.dx = (x_max - x_min) / (self.grid_dim[0] - 1)
+        self.dy = (y_max - y_min) / (self.grid_dim[1] - 1)
         
         # Default target frequency
         self.frequency = 4000.0
@@ -77,7 +81,10 @@ class Processor:
         
         base_beamforming_result = np.zeros(self.grid_dim).tolist()
         
-        self.beamforming_results = {'results' : base_beamforming_result}
+        self.beamforming_results = {'results' : base_beamforming_result,
+                                    'max_x': [0],
+                                    'max_y': [0],
+                                    'max_s': [0]}
         
         # Filename for the results
         self.results_folder = results_folder
@@ -290,6 +297,7 @@ class Processor:
             strength_pred = strength_pred.squeeze()
       
             strength_pred *= np.real(csm_norm)
+            strength_pred = ac.L_p(strength_pred)
             loc_pred = loc_pred.squeeze()
      
             loc_pred -= 0.5
@@ -449,6 +457,17 @@ class Processor:
         # Thread
         self.beamforming_thread = Thread(target=self._beamforming_generator)
         self.save_time_samples_beamforming_thread = Thread(target=self._save_time_samples_beamforming)
+        
+    def _get_maximum_coordinates(self, data):
+        """ Get the maximum coordinates of the beamforming results
+        """
+        max_val_index = np.argmax(data)
+        max_x, max_y = np.unravel_index(max_val_index, data.shape)
+        x_coord = self.x_min + max_x * self.dx
+        x_coord = -x_coord
+        y_coord = self.y_min + max_y * self.dy
+        
+        return [x_coord], [y_coord]
     
     def _beamforming_generator(self):
         """ Beamforming-Generator """
@@ -462,6 +481,8 @@ class Processor:
                 count += 1
                 with self.beamforming_result_lock:
                     self.beamforming_results['results'] = res.tolist()  
+                    self.beamforming_results['max_x'], self.beamforming_results['max_y'] = self._get_maximum_coordinates(res)
+                    self.beamforming_results['max_s'] = np.max(res)
                 
             except StopIteration:
                 print("Generator has been stopped.")
@@ -561,8 +582,8 @@ class Processor:
             csv_filename = self.results_filename + '.csv'
             with open(csv_filename, mode='a', newline='') as file:
                 writer = csv.writer(file)
-                for x, y, s in zip(current_results['x'], current_results['y'], current_results['s']):
-                    writer.writerow([timestamp, current_frequency, x, y, s])
+                for x, y, z, s in zip(current_results['x'], current_results['y'], current_results['z'], current_results['s']):
+                    writer.writerow([timestamp, current_frequency, x, y, z, s])
         
         # Save the results to a H5 file
         if self.save_h5:
@@ -587,4 +608,47 @@ class Processor:
                     freq_dataset = hf['frequency']
                     freq_dataset.resize((freq_dataset.shape[0] + len(current_results['x']),))
                     freq_dataset[-len(current_results['x']):] = [current_frequency] * len(current_results['x'])
+                    
+                    
+    def _save_beamforming_results(self):
+        """ Save the results to a CSV and H5 file
+        """
+        timestamp = self._get_current_timestamp()
+        current_results = self.get_beamforming_results()
+        
+        with self.frequency_lock:
+            current_frequency = self.frequency
+        
+        # Save the results to a CSV file
+        if self.save_csv:
+            csv_filename = self.results_filename + '.csv'
+            with open(csv_filename, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                for x, y,  s in zip(current_results['max_x'], current_results['max_y'], current_results['max_z']):
+                    writer.writerow([timestamp, current_frequency, x, y,  s])
+        
+        # Save the results to a H5 file
+        if self.save_h5:
+            h5_filename = self.results_filename + '.h5'
+            with h5py.File(h5_filename, 'a') as hf:
+                if 'x' not in hf:
+                    hf.create_dataset('timestamp', data=np.array([timestamp]*len(current_results['x']), dtype='S19'), maxshape=(None,))
+                    hf.create_dataset('frequency', data=np.array([current_frequency]*len(current_results['x'])), maxshape=(None,))
+                    hf.create_dataset('x', data=np.array(current_results['max_x']), maxshape=(None,))
+                    hf.create_dataset('y', data=np.array(current_results['max_y']), maxshape=(None,))
+                    hf.create_dataset('s', data=np.array(current_results['max_s']), maxshape=(None,))  
+                else:
+                    for key in ['x', 'y', 's']:
+                        dataset = hf[key]
+                        dataset.resize((dataset.shape[0] + len(current_results[key]),))
+                        dataset[-len(current_results[key]):] = current_results[key]
+                    
+                    timestamp_dataset = hf['timestamp']
+                    timestamp_dataset.resize((timestamp_dataset.shape[0] + len(current_results['x']),))
+                    timestamp_dataset[-len(current_results['max_x']):] = [timestamp.encode('utf-8')] * len(current_results['max_x'])
+                    freq_dataset = hf['frequency']
+                    freq_dataset.resize((freq_dataset.shape[0] + len(current_results['max_x']),))
+                    freq_dataset[-len(current_results['max_x']):] = [current_frequency] * len(current_results['max_x'])
+    
+
     

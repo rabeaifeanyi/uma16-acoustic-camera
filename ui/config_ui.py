@@ -32,5 +32,5 @@ FIG_HEIGHT = 600
 SIDEBAR_WIDTH = 300
 
 
-start_text = "Messung starten"
-stop_text = "Messung beenden"
+start_text = "Start"
+stop_text = "Stop"

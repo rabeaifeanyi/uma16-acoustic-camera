@@ -8,7 +8,7 @@ from scipy.spatial.distance import pdist, squareform # type: ignore
 
 
 class AcousticCameraPlot:
-    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold, scale_factor=1, Z=1.2, min_distance=1):
+    def __init__(self, frame_width, frame_height, mic_positions, alphas, threshold, scale_factor=1, Z=1.2, min_distance=1, max_level=80):
         
         # Set the frame width and height
         self.frame_width = int(frame_width * 1.1 * scale_factor)
@@ -20,6 +20,8 @@ class AcousticCameraPlot:
         
         self.Z = Z
         self.min_distance = min_distance
+        
+        self.max_level = max_level
         
         # Array with microphone positions
         self.mic_positions = mic_positions
@@ -53,12 +55,14 @@ class AcousticCameraPlot:
         # Data source for the beamforming data
         self.beamforming_cds = ColumnDataSource({'beamformer_data': []})    
         
+        self.beamforming_dot_cds = ColumnDataSource(data=dict(x=[], y=[]))
+        
         self.x_min, self.y_min = -1.5, -1.5
         self.x_max, self.y_max = 1.5, 1.5
         self.dx = self.x_max - self.x_min
         self.dy = self.y_max - self.y_min
         
-        self.bar_low, self.bar_high = 0.00005, 0.01
+        self.bar_low, self.bar_high = self.threshold, self.max_level
         
         # Create the plot
         self.fig = self._create_plot()
@@ -85,13 +89,12 @@ class AcousticCameraPlot:
 
     def update_plot_model(self, model_data):
         self.model_renderer.visible = True
-        self.beamforming_renderer.visible = False
+        #self.beamforming_renderer.visible = False
         
         x = -np.array(model_data['x'])
         y = np.array(model_data['y'])
         z = np.array(model_data['z'])
         s = np.array(model_data['s'])
-        #print(x,y)
         
         if len(z) > 0:
             z_clipped = np.clip(z, self.min_distance, self.Z)
@@ -143,8 +146,14 @@ class AcousticCameraPlot:
     
     def update_plot_beamforming(self, results):
         self.model_renderer.visible = False
-        self.beamforming_renderer.visible = True
-        self.beamforming_cds.data['beamformer_data'] = results['results']
+        #self.beamforming_renderer.visible = True
+        #self.beamforming_cds.data['beamformer_data'] = results['results']
+        self.beamforming_cds.data = {'beamformer_data': results['results']}
+        
+    def update_plot_beamforming_dots(self, results):
+        self.model_renderer.visible = False
+        max_x, max_y = results['max_x'], results['max_y']
+        self.beamforming_dot_cds.data = dict(x=max_x, y=max_y)
 
     def update_camera_image(self, img):
         self.camera_cds.data['image_data'] = [img]
@@ -230,16 +239,23 @@ class AcousticCameraPlot:
         self.b_color_mapper = LinearColorMapper(palette=Magma256[::-1], low=0, high=100)
        
         # Renderer für Beamforming-Daten
-        self.beamforming_renderer = fig.image(
-            image='beamformer_data',
-            x=self.x_min,
-            y=self.y_min,
-            dw=self.dx,
-            dh=self.dy,
-            source=self.beamforming_cds,
-            color_mapper=self.b_color_mapper,
-            level='image',
-            alpha=0.6
+        # self.beamforming_renderer = fig.image(
+        #     image='beamformer_data',
+        #     x=self.x_min,
+        #     y=self.y_min,
+        #     dw=self.dx,
+        #     dh=self.dy,
+        #     source=self.beamforming_cds,
+        #     color_mapper=self.b_color_mapper,
+        #     level='image',
+        #     alpha=0.6
+        # )
+        
+        self.beamforming_plot = fig.scatter(
+            x = 'x',
+            y = 'y',
+            marker='circle',
+            source=self.beamforming_dot_cds,
         )
         
         color_bar = ColorBar(
