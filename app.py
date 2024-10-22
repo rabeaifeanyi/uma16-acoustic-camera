@@ -35,7 +35,7 @@ CAMERA_UPDATE_INTERVAL = 100
 STREAM_UPDATE_INTERVAL = 1000
 
 # Model paths
-model_name = "EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-16_16-51"
+model_name = "EigmodeTransformer_learning_rate0.00025_weight_decay1e-06_epochs500_2024-10-22_10-33"
 model_dir = Path(f"/home/rabea/Documents/Bachelorarbeit/models/{model_name}")
 config_path = model_dir / 'config.toml'
 ckpt_path = model_dir / 'ckpt' / 'best_ckpt'
