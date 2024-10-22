@@ -11,7 +11,7 @@ from .config_ui import *
 class Dashboard:
     def __init__(self, video_stream, processor, mic_array_config, 
                  estimation_update_interval, beamforming_update_interval, camera_update_interval, stream_update_interval, 
-                 threshold, alphas, scale_factor, z, min_distance, camera_on=True):
+                 threshold, alphas, scale_factor, x, y, z, min_distance, camera_on=True):
 
         # Angles of the camera view
         self.alphas = alphas
@@ -58,7 +58,7 @@ class Dashboard:
         self.stream_update_interval = stream_update_interval
         self.overflow_update_interval = estimation_update_interval
         
-        self.real_x, self.real_y, self.real_z = 1.0, 1.0, z
+        self.real_x, self.real_y, self.real_z = x, y, z
         
         # Frequency input field
         self.f_input = TextInput(value=str(self.processor.frequency), title="Frequency (Hz)")
@@ -557,9 +557,7 @@ class Dashboard:
             
     def stop_beamforming(self):
         if self.beamforming_thread is not None:
-            print("TRYING TO STOP!")
             self.beamforming_thread.join()
-            print("STOPPED!")
             self.beamforming_thread = None
             
         if self.beamforming_callback is not None:

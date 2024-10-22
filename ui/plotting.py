@@ -91,7 +91,7 @@ class AcousticCameraPlot:
         self.model_renderer.visible = True
         #self.beamforming_renderer.visible = False
         
-        x = -np.array(model_data['x'])
+        x = np.array(model_data['x'])
         y = np.array(model_data['y'])
         z = np.array(model_data['z'])
         s = np.array(model_data['s'])

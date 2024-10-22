@@ -12,7 +12,8 @@ ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = True
-Z = 0.97 #m
+X, Y, Z = -0.45, 0.05, 0.97 #m
+
 MIN_DISTANCE = 1 #m
 THRESHOLD = 60 
 DESIRED_WIDTH = 640
@@ -79,6 +80,8 @@ dashboard = Dashboard(
     THRESHOLD,
     alphas,
     SCALE_FACTOR,
+    X,
+    Y,
     Z,
     MIN_DISTANCE,
     CAMERA_ON)

@@ -98,8 +98,9 @@ class Processor:
         self.data_filename, self.results_filename = self._get_result_filenames('model')
         
         # Call functions to setup the model
+        self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
         self._generators_for_model()
-        
+        self._generators_for_beamforming()        
         
     def start_model(self):
         """ Start the model processing
@@ -110,7 +111,8 @@ class Processor:
         self.data_filename, self.results_filename = self._get_result_filenames('model')
         
         # Call functions to setup the model
-        self._generators_for_model()
+        #self._generators_for_model()
+        self.writeH5.name = f"{self.data_filename}.h5"
         self._setup_model()
         self._model_threads()
         
@@ -165,7 +167,7 @@ class Processor:
         print("Setting up generators for the model process.")
         # TODO: anpassen, falls möglich 
         # Data Generator
-        self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
+        #self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
         
         # Sample Splitter for parallel processing
         sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) 
@@ -302,6 +304,7 @@ class Processor:
      
             loc_pred -= np.array([0.0, 0.0, 0.5])[:,np.newaxis] # shift_loc in config.toml
             loc_pred *= np.array([1.0, 1.0, 0.5])[:,np.newaxis] # norm_loc in config.toml
+            loc_pred[0] = -loc_pred[0]
 
             with self.result_lock:
                 self.results = {
@@ -375,7 +378,8 @@ class Processor:
         self.data_filename, self.results_filename = self._get_result_filenames('beamforming')
         
         # Setup the generators for the beamforming process
-        self._generators_for_beamforming()
+        #self._generators_for_beamforming()
+        self.writeH5.name = f"{self.data_filename}.h5"
         self._beamforming_threads()
         
         # Start the beamforming thread
@@ -412,7 +416,7 @@ class Processor:
         print("Setting up generators for beamforming.")
         
         # 16-Kanal-Mikrofon-Array-Daten-Generator
-        self.dev = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
+        #self.dev = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
         
         # Turn Volt to Pascal 
         self.source_mixer = ac.SourceMixer(sources=[self.dev],weights=np.array([1/0.0016]))
