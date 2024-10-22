@@ -300,8 +300,8 @@ class Processor:
             strength_pred = ac.L_p(strength_pred)
             loc_pred = loc_pred.squeeze()
      
-            loc_pred -= np.array([0.0, 0.0, 0.5]) # shift_loc in config.toml
-            loc_pred *= np.array([1.0, 1.0, 0.5]) # norm_loc in config.toml
+            loc_pred -= np.array([0.0, 0.0, 0.5])[:,np.newaxis] # shift_loc in config.toml
+            loc_pred *= np.array([1.0, 1.0, 0.5])[:,np.newaxis] # norm_loc in config.toml
 
             with self.result_lock:
                 self.results = {
