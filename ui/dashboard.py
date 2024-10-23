@@ -274,6 +274,8 @@ class Dashboard:
                 
     def start_measurement(self):
         """Callback für den Messungs-Button, startet oder stoppt die Messung"""
+        #self.deviation_cds = ColumnDataSource(data=dict(time=[], x_deviation=[], y_deviation=[], z_deviation=[]))
+        
         if self.method == 0:
             if self.model_thread is None:
                 self.snapshot_callback = curdoc().add_next_tick_callback(self.update_snapshot)
@@ -599,6 +601,7 @@ class Dashboard:
     
     # Stream
     def update_stream(self):
-        stream_data = self.processor.get_uma_data()
-        self.stream_plot.update_plot(stream_data)
+        pass
+        #stream_data = self.processor.get_uma_data()
+        #self.stream_plot.update_plot(stream_data)
 

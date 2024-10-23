@@ -94,13 +94,12 @@ class Processor:
         self.save_h5 = save_h5   
         
         # For testing purposes only: data of the first channel can be plotted
-        self._generators_for_data() 
+        
         self.data_filename, self.results_filename = self._get_result_filenames('model')
         
         # Call functions to setup the model
         self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
-        self._generators_for_model()
-        self._generators_for_beamforming()        
+        self._generators()      
         
     def start_model(self):
         """ Start the model processing
@@ -111,11 +110,13 @@ class Processor:
         self.data_filename, self.results_filename = self._get_result_filenames('model')
         
         # Call functions to setup the model
-        #self._generators_for_model()
+
         self.writeH5.name = f"{self.data_filename}.h5"
         self._setup_model()
-        self._model_threads()
+        self.sample_splitter.register_object(self.fft, self.writeH5)
+        print("Registered objects from sample splitter.")
         
+        self._model_threads()
         # Start thread for data logging
         print("Starting Data Saving thread.")
         self.save_time_samples_thread.start()
@@ -154,6 +155,9 @@ class Processor:
                 break
         print("CSM queue cleared.")
         
+        self.sample_splitter.remove_object(self.fft, self.writeH5)
+        print("Removed objects from sample splitter.")
+        
     def get_results(self):
         """ Get current results of the model
         """
@@ -161,28 +165,27 @@ class Processor:
         with self.result_lock:
             return self.results.copy()
          
-    def _generators_for_model(self):
-        """ Setup the generators for the model process
+    def _generators(self):
+        """ Setup the generators for the process
         """
-        print("Setting up generators for the model process.")
-        # TODO: anpassen, falls möglich 
-        # Data Generator
-        #self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
+        print("Setting up generators for the process.")
+        
+        self.dev = SoundDeviceSamplesGeneratorWithPrecision(device=self.device, numchannels=16) #P0
+        
+        # Turn Volt to Pascal 
+        self.source_mixer = ac.SourceMixer(sources=[self.dev],weights=np.array([1/0.0016]))
         
         # Sample Splitter for parallel processing
-        sample_splitter = ac.SampleSplitter(source=self.dev, buffer_size=1024) 
+        self.sample_splitter = ac.SampleSplitter(source=self.source_mixer, buffer_size=1024) 
         
         # Generator for logging the time data
-        self.writeH5 = ac.WriteH5(source=sample_splitter, name=f"{self.data_filename}.h5") 
+        self.writeH5 = ac.WriteH5(source=self.sample_splitter, name=f"{self.data_filename}.h5") 
 
         # Real Fast Fourier Transform
-        self.fft = ac.RFFT(source=sample_splitter, block_size=self.csm_block_size)
+        self.fft = ac.RFFT(source=self.sample_splitter, block_size=self.csm_block_size)
         
         # Cross Power Spectra -> CSM
         self.csm_gen = ac.CrossPowerSpectra(source=self.fft)
-        
-        # Register the objects
-        sample_splitter.register_object(self.fft, self.writeH5)
         
         # TODO: When MaskedSpectraOut is implemented, use it here to filter freqencies
         # Problem: This means, we have to restart the model setup, when the frequency is updated
@@ -192,6 +195,19 @@ class Processor:
 
         # Index of the target frequency -> not necessary if MaskedSpectraOut is used
         self.f_ind = np.searchsorted(self.fft.fftfreq(), self.frequency)
+
+        # Steering Vector
+        self.steer = ac.SteeringVector(env=ac.Environment(c=343), grid=self.beamforming_grid, mics=self.mics)
+        
+        self.lastOut = LastInOut(source=self.sample_splitter)
+        
+        self.bf = ac.BeamformerTime(source=self.lastOut, steer=self.steer)
+        
+        self.filter = ac.FiltOctave(source=self.bf, band=self.frequency, fraction='Third octave')
+        
+        self.power = ac.TimePower(source=self.filter)
+        
+        self.bf_out = ac.TimeAverage(source=self.power, naverage=512)
         
     def _save_time_samples(self):
         """ Save the time samples to a H5 file """
@@ -236,30 +252,34 @@ class Processor:
     def _csm_generator(self):
         """ CSM generator thread for the model
         """
+        gen = self.csm_gen.result(num=self.csm_num)
+        #print("before while", self.model_stop_event.is_set())
+        
         while not self.model_stop_event.is_set():
-            
+            #print("after while", self.model_stop_event.is_set())
             # Yield the next CSM data block
-            data = next(self.csm_gen.result(num=self.csm_num))
+            data = next(gen)
             
-            while not self.model_stop_event.is_set():
-                try:
-                    self.csm_queue.put(data, timeout=1)
-                    break  # If successful, break the loop
+            #while not self.model_stop_event.is_set():
+                #try:
+            self.csm_queue.put(data)#, timeout=0.1)
+            
+                    #break  # If successful, break the loop
                 
                 # Queue is full, remove the oldest element
-                except queue.Full:
-                    try:  
-                        # Oldest element is removed
-                        self.csm_queue.get_nowait()
+                # except queue.Full:
+                #     try:  
+                #         # Oldest element is removed
+                #         self.csm_queue.get_nowait()
                     
-                    # Should not happen, but just in case
-                    except queue.Empty:
-                        pass
+                #     # Should not happen, but just in case
+                #     except queue.Empty:
+                #         pass
                 
-                # Unexpected error, break the loop    
-                except Exception as e:
-                    print(f"Error in csm_generator: {e}")
-                    break  
+                # # Unexpected error, break the loop    
+                # except Exception as e:
+                #     print(f"Error in csm_generator: {e}")
+                #     break  
 
     def _predictor(self):
         """ Prediction thread for the model
@@ -304,6 +324,8 @@ class Processor:
      
             loc_pred *= np.array([1.0, 1.0, 0.5])[:,np.newaxis] # norm_loc in config.toml
             loc_pred -= np.array([0.0, 0.0, -1.5])[:,np.newaxis] # shift_loc in config.toml
+            
+            loc_pred[0] = -loc_pred[0]
 
             with self.result_lock:
                 self.results = {
@@ -321,13 +343,6 @@ class Processor:
         # will not be necessary, as soon as MsskedSpectraInOut is implemented
         csm = data.reshape(self.csm_shape)
         csm = csm[self.f_ind].reshape(self.dev.numchannels, self.dev.numchannels)
-        
-        # at this point, the CSM is in [Volt^2] since the microphone channel data
-        # is a voltage strea -> we need to convert it to squared sound pressure values [Pa^2]
-        # we do not account for the true sensitivity of the MEMS microphones here! 
-        # I just use a standard sensitivity of 16 mV/Pa for all microphones
-        # MEMS Sensitivity (94 dB SPL @ 1 kHz) -29 dBFS -> TODO?
-        csm = csm / 0.0016**2
 
         # Normalization of the CSM with respect to the reference microphone
         csm_norm = csm[self.ref_mic_index, self.ref_mic_index]
@@ -376,9 +391,10 @@ class Processor:
         # filenames
         self.data_filename, self.results_filename = self._get_result_filenames('beamforming')
         
-        # Setup the generators for the beamforming process
-        #self._generators_for_beamforming()
         self.writeH5.name = f"{self.data_filename}.h5"
+        self.sample_splitter.register_object(self.lastOut, self.writeH5)
+        print("Registered objects from sample splitter.")
+        
         self._beamforming_threads()
         
         # Start the beamforming thread
@@ -402,41 +418,15 @@ class Processor:
         self.save_time_samples_beamforming_thread.join()
         print("Time data saving thread stopped.")
         
+        self.sample_splitter.remove_object(self.lastOut, self.writeH5)
+        print("Removed objects from sample splitter.")
+        
     def get_beamforming_results(self):
         """ Get current results of the model
         """
         # Return a copy of the results safely
         with self.beamforming_result_lock:
             return self.beamforming_results.copy()
-    
-    def _generators_for_beamforming(self):
-        """ Setup the generators for the beamforming process
-        """
-        print("Setting up generators for beamforming.")
-        
-        # 16-Kanal-Mikrofon-Array-Daten-Generator
-        #self.dev = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
-        
-        # Turn Volt to Pascal 
-        self.source_mixer = ac.SourceMixer(sources=[self.dev],weights=np.array([1/0.0016]))
-        
-        # Sample Splitter
-        sample_splitter = ac.SampleSplitter(source=self.source_mixer, buffer_size=1024)
-        
-        # Generator for Logging time data
-        self.writeH5 = ac.WriteH5(source=sample_splitter, name=self.data_filename)
-
-        # Steering Vector
-        steer = ac.SteeringVector(env=ac.Environment(c=343), grid=self.beamforming_grid, mics=self.mics)
-        
-        self.lastOut = LastInOut(source=sample_splitter)
-        self.bf = ac.BeamformerTime(source=self.lastOut, steer=steer)
-        
-        filter = ac.FiltOctave(source=self.bf, band=self.frequency, fraction='Third octave')
-        power = ac.TimePower(source=filter)
-        self.bf_out = ac.TimeAverage(source=power, naverage=512)
-        
-        sample_splitter.register_object(self.lastOut, self.writeH5)
         
     def _beamforming_threads(self):
         """ Threads for the beamforming process
@@ -522,26 +512,6 @@ class Processor:
         with self.min_queue_size_lock:
             self.min_queue_size = min_queue_size
         print(f"Minimum queue size updated to {self.min_queue_size}.")   
-    
-    def get_uma_data(self):
-        """  Returns the time data of the microphone array      
-        """
-        signal = ac.tools.return_result(self.dev_data, num=256)
-        return {
-            'x': self.t.tolist(), 
-            'y': signal.tolist()
-        }
-        
-    def _generators_for_data(self):
-        """ Setup the generators for the data processing
-        """
-        # 16-Channel-Microphone-Array-Data-Generator
-        self.dev_data = ac.SoundDeviceSamplesGenerator(device=self.device, numchannels=16)
-        
-        # Length of the recording
-        self.recording_time = 0.1
-        self.dev_data.numsamples = int(self.recording_time * self.dev_data.sample_freq)
-        self.t = np.arange(self.dev_data.numsamples) / self.dev_data.sample_freq
         
     def _get_current_timestamp(self):
         """ Get the current timestamp in ISO format

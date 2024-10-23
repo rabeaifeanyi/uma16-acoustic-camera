@@ -1,6 +1,8 @@
 import numpy as np
 import acoular as ac
 from tapy.devices.sensors import OHT20 #type: ignore
+import os
+import datetime
 
 oht20_sensor = OHT20(port="/dev/ttyACM0")
 ac.config.global_caching = "none" # type: ignore
@@ -76,11 +78,21 @@ def c0_cramer(h, celsius, p=101325, x_c=0.0004):
 
 
 if __name__ == "__main__":
-
     temperature = oht20_sensor.read_temperature()
     humidity = oht20_sensor.read_humidity()
     speed_of_sound = c0_cramer(humidity, temperature)
-    
-    # print with one decimal
-    print(f"{temperature:.1f}, {humidity:.1f}, {speed_of_sound:.3f}")
 
+    # Ensure the 'messungen' directory exists
+    if os.path.exists('messungen'):
+        # Get the current date and time
+        date_time_str = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
+        # Create the filename
+        filename = f"messungen/temperature-{date_time_str}.csv"
+
+        # Save data to CSV file unrounded
+        with open(filename, 'w') as f:
+            f.write("Temperature,Humidity,Speed_of_Sound\n")
+            f.write(f"{temperature},{humidity},{speed_of_sound}\n")
+            
+        print("saved temp.")
