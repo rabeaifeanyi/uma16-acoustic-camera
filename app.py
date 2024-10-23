@@ -12,7 +12,7 @@ ac.config.global_caching = 'none' # type: ignore
 
 # Video configurations
 UNDISTORT = True
-X, Y, Z = -0.45, 0.05, 0.97 #m
+X, Y, Z = -0.26, 0.005, 1.695 #m
 
 MIN_DISTANCE = 1 #m
 THRESHOLD = 60 
@@ -27,7 +27,7 @@ alphas = calculate_alphas(Z, dx=DX, dz=DZ) # TODO Datenblatt finden und Winkel Ã
 
 # Configuration for saving results
 CSV = True
-H5 = False
+H5 = True
 
 # Update rate configurations in ms
 ESTIMATION_UPDATE_INTERVAL = 100
